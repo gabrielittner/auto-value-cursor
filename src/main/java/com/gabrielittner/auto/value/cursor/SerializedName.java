@@ -1,4 +1,4 @@
-package com.ryanharter.auto.value.gson;
+package com.gabrielittner.auto.value.cursor;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;

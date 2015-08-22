@@ -1,35 +1,22 @@
-package com.ryanharter.auto.value.gson;
+package com.gabrielittner.auto.value.gson;
 
 import com.google.auto.value.processor.AutoValueProcessor;
-import com.google.gson.Gson;
 import com.google.testing.compile.JavaFileObjects;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
-import com.squareup.javapoet.TypeName;
-import com.squareup.javapoet.TypeSpec;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.tools.JavaFileObject;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
 import static com.google.common.truth.Truth.assertAbout;
-import static com.google.common.truth.Truth.assertThat;
 import static com.google.testing.compile.JavaSourcesSubjectFactory.javaSources;
 
-/**
- * Created by rharter on 7/20/15.
- */
-public class AutoValueGsonExtensionTest {
+public class AutoValueCursorExtensionTest {
 
   private JavaFileObject serializedName;
 
   @Before public void setup() {
-    serializedName = JavaFileObjects.forSourceString("com.ryanharter.auto.value.gson.SerializedName", ""
+    serializedName = JavaFileObjects.forSourceString("com.gabrielittner.auto.value.cursor.SerializedName", ""
         + "package com.ryanharter.auto.value.gson;\n"
         + "import java.lang.annotation.Retention;\n"
         + "import java.lang.annotation.Target;\n"
@@ -47,7 +34,7 @@ public class AutoValueGsonExtensionTest {
   @Test public void simple() {
     JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
             + "package test;\n"
-            + "import com.ryanharter.auto.value.gson.SerializedName;\n"
+            + "import com.gabrielittner.auto.value.cursor.SerializedName;\n"
             + "import com.google.auto.value.AutoValue;\n"
             + "@AutoValue public abstract class Test {\n"
             // Reference type

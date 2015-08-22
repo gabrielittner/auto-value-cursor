@@ -13,7 +13,7 @@ An extension for Google's [AutoValue](https://github.com/google/auto) that creat
 Simply include AutoGson in your project and add the generated Serializer and Deserializer as a TypeAdapter.  You can also annotate your properties using `@SerializedName` to define an alternate name for de/serialization.
 
 ```java
-import com.ryanharter.auto.value.gson.SerializedName;
+import com.gabrielittner.auto.value.cursor.SerializedName;
 
 @AutoValue public abstract class Foo {
   abstract String bar();
@@ -29,7 +29,7 @@ final Gson gson = new GsonBuilder()
   .create();
 ```
 
-**Note**: Since Gson's built in SerializedName annotation can't be used on methods, you'll have to change your `SerializedName` import to `com.ryanharter.auto.value.gson.SerializedName`.
+**Note**: Since Gson's built in SerializedName annotation can't be used on methods, you'll have to change your `SerializedName` import to `com.gabrielittner.auto.value.cursor.SerializedName`.
 
 Now build your project and de/serialize your Foo.
 
