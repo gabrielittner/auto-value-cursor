@@ -42,17 +42,17 @@ public class AutoValueCursorExtension implements AutoValueExtension {
       type = TypeName.get(element.getReturnType());
     }
 
-    public String serializedName() {
-      SerializedName serializedName = element.getAnnotation(SerializedName.class);
-      if (serializedName != null) {
-        return serializedName.value();
+    public String columnName() {
+      ColumnName columnName = element.getAnnotation(ColumnName.class);
+      if (columnName != null) {
+        return columnName.value();
       } else {
         return name;
       }
     }
 
-    public boolean hasSerializedName() {
-      return hasAnnotationWithName(element, "SerializedName");
+    public boolean hascolumnName() {
+      return element.getAnnotation(ColumnName.class) != null;
     }
 
     public boolean isNullable() {
@@ -64,7 +64,7 @@ public class AutoValueCursorExtension implements AutoValueExtension {
   public boolean applicable(Context context) {
     List<Property> properties = readProperties(context.properties());
     for (Property prop : properties) {
-      if (prop.hasSerializedName()) {
+      if (prop.hascolumnName()) {
         return true;
       }
     }
@@ -159,10 +159,10 @@ public class AutoValueCursorExtension implements AutoValueExtension {
       if (cursorMethod != null) {
         if (isBoolean(prop)) {
           readMethod.addStatement("$T $N = cursor.$L(cursor.getColumnIndexOrThrow($S)) == 1",
-              field.type, field, cursorMethod, prop.serializedName());
+              field.type, field, cursorMethod, prop.columnName());
         } else {
           readMethod.addStatement("$T $N = cursor.$L(cursor.getColumnIndexOrThrow($S))",
-              field.type, field, cursorMethod, prop.serializedName());
+              field.type, field, cursorMethod, prop.columnName());
         }
       } else {
         readMethod.addStatement("$T $N = null", field.type, field);

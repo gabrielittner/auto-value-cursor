@@ -10,6 +10,6 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 @Retention(SOURCE)
 @Target({METHOD, FIELD})
-public @interface SerializedName {
+public @interface ColumnName {
   String value();
 }
