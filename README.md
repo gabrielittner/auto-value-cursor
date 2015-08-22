@@ -1,57 +1,47 @@
-# AutoValue: Gson Extension
+# AutoValue: Cursor Extension
 
-[![Build Status](https://travis-ci.org/rharter/auto-value-gson.svg?branch=master)](https://travis-ci.org/rharter/auto-value-gson)
+[![Build Status](https://travis-ci.org/gabrielittner/auto-value-cursor.svg?branch=master)](https://travis-ci.org/gabrielittner/auto-value-cursor)
 
-An extension for Google's [AutoValue](https://github.com/google/auto) that creates a simple [Gson](https://github.com/google/gson) TypeAdapterFactory for each AutoValue annotated object.
+An extension for Google's [AutoValue](https://github.com/google/auto) that generates a `createFromCursor(Cursor c)` method for AutoValue annotated objects.
 
-**Note**: This is a very early version that won't work with the released AutoValue until a [PR](https://github.com/google/auto/pull/237) has been merged.
+**Note**: This is an early version that requires the extension support currently in AutoValue 1.2-SNAPSHOT.
 
 ## Usage
 
-[![Build Status](https://travis-ci.org/rharter/auto-value-gson.svg)](https://travis-ci.org/rharter/auto-value-gson)
-
-Simply include AutoGson in your project and add the generated Serializer and Deserializer as a TypeAdapter.  You can also annotate your properties using `@SerializedName` to define an alternate name for de/serialization.
+Simply include auto-value-cursor in your project and annotate your properties using `@ColumnName` to define an alternate column name.
 
 ```java
-import com.gabrielittner.auto.value.cursor.SerializedName;
+import com.gabrielittner.auto.value.cursor.ColumnName;
 
 @AutoValue public abstract class Foo {
   abstract String bar();
-  @SerializedName("Baz") abstract String baz();
+  @ColumnName("foo_baz") abstract String baz();
 
-  public static TypeAdapterFactory typeAdapterFactory() {
-    return AutoValue_Foo.typeAdapterFactory();
+  public static create(Cursor cursor) {
+    return AutoValue_Foo.createFromCursor(cursor);
   }
 }
-
-final Gson gson = new GsonBuilder()
-  .registerTypeAdapterFactory(Foo.class, Foo.typeAdapterFactory())
-  .create();
 ```
 
-**Note**: Since Gson's built in SerializedName annotation can't be used on methods, you'll have to change your `SerializedName` import to `com.gabrielittner.auto.value.cursor.SerializedName`.
+**Note**: Right now `createFromCursor()` is oly generated when at least one method is annotated with `@ColumnName`.
 
-Now build your project and de/serialize your Foo.
-
-## TODO
-
-This wouldn't be quite complete without some added features.
-
-* Automatic registration
-* Default value support
+Now build your project and create your Foo from a Cursor.
 
 ## Download
 
 Add a Gradle dependency:
 
 ```groovy
-compile 'com.ryanharter.auto.value:auto-value-gson:0.1-SNAPSHOT'
+compile 'com.gabrielittner.auto.cursor:auto-value-cursor:0.1-SNAPSHOT'
 ```
 
 ## License
 
+This project is heavily based on [Ryan Harter](https://github.com/rharter/)'s [auto-value-gson](https://github.com/rharter/auto-value-gson)
+
 ```
 Copyright 2015 Ryan Harter.
+Copyright 2015 Gabriel Ittner.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
