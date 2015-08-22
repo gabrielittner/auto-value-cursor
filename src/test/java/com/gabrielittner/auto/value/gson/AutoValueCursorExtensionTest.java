@@ -2,132 +2,97 @@ package com.gabrielittner.auto.value.gson;
 
 import com.google.auto.value.processor.AutoValueProcessor;
 import com.google.testing.compile.JavaFileObjects;
-import org.junit.Before;
+import java.util.Collections;
 import org.junit.Test;
 
 import javax.tools.JavaFileObject;
-import java.util.Arrays;
 
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.testing.compile.JavaSourcesSubjectFactory.javaSources;
 
 public class AutoValueCursorExtensionTest {
 
-  private JavaFileObject serializedName;
-
-  @Before public void setup() {
-    serializedName = JavaFileObjects.forSourceString("com.gabrielittner.auto.value.cursor.SerializedName", ""
-        + "package com.ryanharter.auto.value.gson;\n"
-        + "import java.lang.annotation.Retention;\n"
-        + "import java.lang.annotation.Target;\n"
-        + "import static java.lang.annotation.ElementType.METHOD;\n"
-        + "import static java.lang.annotation.ElementType.PARAMETER;\n"
-        + "import static java.lang.annotation.ElementType.FIELD;\n"
-        + "import static java.lang.annotation.RetentionPolicy.SOURCE;\n"
-        + "@Retention(SOURCE)\n"
-        + "@Target({METHOD, PARAMETER, FIELD})\n"
-        + "public @interface SerializedName {\n"
-        + "  String value();\n"
-        + "}");
-  }
-
   @Test public void simple() {
     JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
             + "package test;\n"
-            + "import com.gabrielittner.auto.value.cursor.SerializedName;\n"
+            + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
             + "import com.google.auto.value.AutoValue;\n"
+            + "import javax.annotation.Nullable;\n"
             + "@AutoValue public abstract class Test {\n"
-            // Reference type
-            + "public abstract String a();\n"
-            // Array type
-            + "public abstract int[] b();\n"
-            // Primitive type
-            + "public abstract int c();\n"
-            // SerializedName
-            + "@SerializedName(\"_D\") public abstract String d();\n"
+            // byte[] type
+            + "public abstract byte[] a();\n"
+            // double type
+            + "public abstract double b();\n"
+            // float type
+            + "public abstract float c();\n"
+            // int type
+            + "public abstract int d();\n"
+            // long type
+            + "public abstract long e();\n"
+            // short type
+            + "public abstract short f();\n"
+            // boolean type
+            + "public abstract boolean g();\n"
+            // String type
+            + "public abstract String h();\n"
+            // ColumnName
+            + "@ColumnName(\"column_i\") public abstract String i();\n"
+            // Nullable unsupported value
+            + "@Nullable public abstract int[] j();\n"
             + "}\n"
     );
 
     JavaFileObject expected = JavaFileObjects.forSourceString("test/AutoValue_Test", ""
             + "package test;\n"
             + "\n"
-            + "import com.google.gson.Gson;\n"
-            + "import com.google.gson.TypeAdapter;\n"
-            + "import com.google.gson.TypeAdapterFactory;\n"
-            + "import com.google.gson.reflect.TypeToken;\n"
-            + "import com.google.gson.stream.JsonReader;\n"
-            + "import com.google.gson.stream.JsonWriter;\n"
-            + "import java.io.IOException;\n"
-            + "import java.lang.Integer;\n"
-            + "import java.lang.Override;\n"
+            + "import android.database.Cursor;\n"
             + "import java.lang.String;\n"
             + "\n"
             + "final class AutoValue_Test extends $AutoValue_Test {\n"
-            + "  AutoValue_Test(String a, int[] b, int c, String d) {\n"
-            + "    super(a, b, c, d);\n"
+            + "  AutoValue_Test(byte[] a, double b, float c, int d, long e, short f, boolean g, String h, String i, int[] j) {\n"
+            + "    super(a, b, c, d, e, f, g, h, i, j);\n"
             + "  }\n"
             + "\n"
-            + "  public static TestTypeAdapterFactory typeAdapterFactory() {\n"
-            + "    return new TestTypeAdapterFactory();\n"
-            + "  }\n"
-            + "\n"
-            + "  public static final class TestTypeAdapterFactory implements TypeAdapterFactory {\n"
-            + "    @Override\n"
-            + "    public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {\n"
-            + "      if (!Test.class.isAssignableFrom(typeToken.getRawType())) return null;\n"
-            + "      return (TypeAdapter<T>) new TestTypeAdapter(gson);\n"
-            + "    }\n"
-            + "  }\n"
-            + "\n"
-            + "  public static final class TestTypeAdapter extends TypeAdapter<Test> {\n"
-            + "    Gson gson;\n"
-            + "    public TestTypeAdapter(Gson gson) {\n"
-            + "      this.gson = gson;\n"
-            + "    }\n"
-            + "    @Override\n"
-            + "    public void write(JsonWriter jsonWriter, Test object) throws IOException {\n"
-            + "      jsonWriter.beginObject();\n"
-            + "      jsonWriter.name(\"a\");\n"
-            + "      gson.getAdapter(String.class).write(jsonWriter, object.a());\n"
-            + "      jsonWriter.name(\"b\");\n"
-            + "      gson.getAdapter(int[].class).write(jsonWriter, object.b());\n"
-            + "      jsonWriter.name(\"c\");\n"
-            + "      gson.getAdapter(Integer.class).write(jsonWriter, object.c());\n"
-            + "      jsonWriter.name(\"_D\");\n"
-            + "      gson.getAdapter(String.class).write(jsonWriter, object.d());\n"
-            + "      jsonWriter.endObject();\n"
-            + "    }\n"
-            + "    @Override\n"
-            + "    public Test read(JsonReader jsonReader) throws IOException {\n"
-            + "      jsonReader.beginObject();\n"
-            + "      String a = null;\n"
-            + "      int[] b = null;\n"
-            + "      Integer c = null;\n"
-            + "      String d = null;"
-            + "      while (jsonReader.hasNext()) {\n"
-            + "        String _name = jsonReader.nextName();\n"
-            + "        if (\"a\".equals(_name)) {\n"
-            + "          a = gson.getAdapter(String.class).read(jsonReader);\n"
-            + "        } else if (\"b\".equals(_name)) {\n"
-            + "          b = gson.getAdapter(int[].class).read(jsonReader);\n"
-            + "        } else if (\"c\".equals(_name)) {\n"
-            + "          c = gson.getAdapter(Integer.class).read(jsonReader);\n"
-            + "        } else if (\"_D\".equals(_name)) {\n"
-            + "          d = gson.getAdapter(String.class).read(jsonReader);\n"
-            + "        }\n"
-            + "      }\n"
-            + "      jsonReader.endObject();\n"
-            + "      return new AutoValue_Test(a, b, c, d);\n"
-            + "    }\n"
+            + "  static Test createFromCursor(Cursor cursor) {\n"
+            + "    byte[] a = cursor.getBlob(cursor.getColumnIndexOrThrow(\"a\"));\n"
+            + "    double b = cursor.getDouble(cursor.getColumnIndexOrThrow(\"b\"));\n"
+            + "    float c = cursor.getFloat(cursor.getColumnIndexOrThrow(\"c\"));\n"
+            + "    int d = cursor.getInt(cursor.getColumnIndexOrThrow(\"d\"));\n"
+            + "    long e = cursor.getLong(cursor.getColumnIndexOrThrow(\"e\"));\n"
+            + "    short f = cursor.getShort(cursor.getColumnIndexOrThrow(\"f\"));\n"
+            + "    boolean g = cursor.getInt(cursor.getColumnIndexOrThrow(\"g\")) == 1;\n"
+            + "    String h = cursor.getString(cursor.getColumnIndexOrThrow(\"h\"));\n"
+            + "    String i = cursor.getString(cursor.getColumnIndexOrThrow(\"column_i\"));\n"
+            + "    int[] j = null;\n"
+            + "    return new AutoValue_Test(a, b, c, d, e, f, g, h, i, j);\n"
             + "  }\n"
             + "}"
     );
 
     assertAbout(javaSources())
-        .that(Arrays.asList(serializedName, source))
+        .that(Collections.singletonList(source))
         .processedWith(new AutoValueProcessor())
         .compilesWithoutError()
         .and()
         .generatesSources(expected);
   }
+
+  @Test public void failTest() {
+    JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+            + "package test;\n"
+            + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
+            + "import com.google.auto.value.AutoValue;\n"
+            + "@AutoValue public abstract class Test {\n"
+            // byte[] type
+            + "public abstract int[] a();\n"
+            // ColumnName
+            + "@ColumnName(\"column_i\") public abstract String b();\n"
+            + "}\n"
+    );
+
+    assertAbout(javaSources())
+            .that(Collections.singletonList(source))
+            .processedWith(new AutoValueProcessor())
+            .failsToCompile();
+}
 }
