@@ -17,7 +17,7 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
   abstract String bar();
   @ColumnName("foo_baz") abstract String baz();
 
-  public static create(Cursor cursor) {
+  public static Foo create(Cursor cursor) {
     return AutoValue_Foo.createFromCursor(cursor);
   }
 }
