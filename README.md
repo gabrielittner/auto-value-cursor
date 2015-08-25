@@ -23,8 +23,6 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 }
 ```
 
-**Note**: Right now `createFromCursor()` is oly generated when at least one method is annotated with `@ColumnName`.
-
 Now build your project and create your Foo from a Cursor.
 
 ## Download
