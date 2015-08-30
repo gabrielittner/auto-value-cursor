@@ -51,24 +51,14 @@ public class AutoValueCursorExtension implements AutoValueExtension {
       }
     }
 
-    public boolean hascolumnName() {
+    public boolean hasColumnName() {
       return element.getAnnotation(ColumnName.class) != null;
-    }
-
-    public boolean isNullable() {
-      return hasAnnotationWithName(element, "Nullable");
     }
   }
 
   @Override
   public boolean applicable(Context context) {
-    List<Property> properties = readProperties(context.properties());
-    for (Property prop : properties) {
-      if (prop.hascolumnName()) {
-        return true;
-      }
-    }
-    return false;
+    return true;
   }
 
   @Override
@@ -96,7 +86,7 @@ public class AutoValueCursorExtension implements AutoValueExtension {
       subclass.addModifiers(ABSTRACT);
     }
 
-    return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
+    return JavaFile.builder(context.packageName(), subclass.build()).skipJavaLangImports(true).build().toString();
   }
 
   public List<Property> readProperties(Map<String, ExecutableElement> properties) {
@@ -149,6 +139,8 @@ public class AutoValueCursorExtension implements AutoValueExtension {
         .returns(annotatedClass)
         .addParameter(jsonReader);
 
+    Property unsupportedNotNullableProp = null;
+    boolean hasColumnName = false;
     // add the properties
     Map<Property, FieldSpec> fields = new LinkedHashMap<>(properties.size());
     for (Property prop : properties) {
@@ -157,16 +149,27 @@ public class AutoValueCursorExtension implements AutoValueExtension {
 
       String cursorMethod = getCursorMethod(prop);
       if (cursorMethod != null) {
-        if (isBoolean(prop)) {
-          readMethod.addStatement("$T $N = cursor.$L(cursor.getColumnIndexOrThrow($S)) == 1",
-              field.type, field, cursorMethod, prop.columnName());
-        } else {
-          readMethod.addStatement("$T $N = cursor.$L(cursor.getColumnIndexOrThrow($S))",
-              field.type, field, cursorMethod, prop.columnName());
-        }
+        String suffix = isBoolean(prop) ? " == 1" : "";
+        readMethod.addStatement("$T $N = cursor.$L(cursor.getColumnIndexOrThrow($S))$L",
+                field.type, field, cursorMethod, prop.columnName(), suffix);
       } else {
-        readMethod.addStatement("$T $N = null", field.type, field);
+        if (prop.hasColumnName()) {
+          throw new IllegalArgumentException("Property " + prop.name + " is annotated with "
+                  + "@ColumnName but a " + prop.type + " can't be read from Cursor.");
+        }
+        if (!hasAnnotationWithName(prop.element, "Nullable")) {
+          unsupportedNotNullableProp = prop;
+        }
+
+        readMethod.addCode("$T $N = null; // type can't be read from cursor\n", field.type, field);
       }
+      if (prop.hasColumnName()) hasColumnName = true;
+    }
+
+    if (hasColumnName && unsupportedNotNullableProp != null) {
+      throw new IllegalArgumentException("Property " + unsupportedNotNullableProp.name
+              + " is annotated with @ColumnName but a " + unsupportedNotNullableProp.type
+              + " can't be read from Cursor.");
     }
 
     StringBuilder format = new StringBuilder("return new ");
@@ -184,7 +187,7 @@ public class AutoValueCursorExtension implements AutoValueExtension {
     return readMethod.build();
   }
 
-  private String getCursorMethod(Property prop) {
+  private static String getCursorMethod(Property prop) {
     if (prop.type.equals(TypeName.get(byte[].class)) || prop.type.equals(TypeName.get(Byte[].class))) {
       return "getBlob";
     } else if (prop.type.equals(TypeName.DOUBLE) || prop.type.equals(TypeName.DOUBLE.box())) {
@@ -201,10 +204,8 @@ public class AutoValueCursorExtension implements AutoValueExtension {
       return "getString";
     } else if (isBoolean(prop)) {
       return "getInt";
-    } else if (prop.isNullable()) {
-      return null;
     }
-    throw new IllegalArgumentException("Can't read " + prop.type + " from cursor");
+    return null;
   }
 
   private static boolean isBoolean(Property prop) {
