@@ -1,7 +1,7 @@
 package com.gabrielittner.auto.value.cursor;
 
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValueExtension;
+import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.FieldSpec;
