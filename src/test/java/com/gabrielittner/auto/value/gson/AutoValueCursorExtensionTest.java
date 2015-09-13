@@ -30,7 +30,7 @@ public class AutoValueCursorExtensionTest {
     }
 
     // will generate null field, but method will effectively always throw when executed
-    // TODO when there is an explicit opt-in this test should fail
+    // TODO when there is an explicit opt-in this test should fail to compile
     @Test public void unsupported() {
         simpleTypeTest("", "int[]", "null; // type can't be read from cursor");
     }
