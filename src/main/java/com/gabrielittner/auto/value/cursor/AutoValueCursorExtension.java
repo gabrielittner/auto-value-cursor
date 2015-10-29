@@ -21,14 +21,10 @@ import javax.lang.model.element.Modifier;
 import static javax.lang.model.element.Modifier.STATIC;
 
 @AutoService(AutoValueExtension.class)
-public class AutoValueCursorExtension implements AutoValueExtension {
+public class AutoValueCursorExtension extends AutoValueExtension {
 
     @Override public boolean applicable(Context context) {
         return true;
-    }
-
-    @Override public boolean mustBeAtEnd(Context context) {
-        return false;
     }
 
     @Override public String generateClass(Context context, String className, String classToExtend,
