@@ -1,3 +1,5 @@
+import org.gradle.internal.jvm.Jvm
+
 apply plugin: 'java'
 apply plugin: 'maven-publish'
 
@@ -5,6 +7,16 @@ sourceCompatibility = rootProject.ext.javaVersion
 targetCompatibility = rootProject.ext.javaVersion
 
 dependencies {
+    compile project(':auto-value-cursor-annotations')
+    compile deps.javapoet
+    compile deps.auto_value
+    compile deps.auto_service
+
+    testCompile deps.junit
+    testCompile deps.truth
+    testCompile deps.compile_testing
+    testCompile files(Jvm.current().getToolsJar())
+    testCompile deps.jsr305
 }
 
 apply from: rootProject.file('gradle/mvn-push.gradle')

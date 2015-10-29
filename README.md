@@ -12,7 +12,9 @@ Include auto-value-cursor in your project and add a static factory method to you
 import com.gabrielittner.auto.value.cursor.ColumnName;
 
 @AutoValue public abstract class User {
+  abstract String id();
   abstract String name();
+  // use the annotation if column name and field name aren't the same
   @ColumnName("email_address") abstract String email();
 
   public static Foo create(Cursor cursor) {
@@ -26,7 +28,9 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 Add a Gradle dependency:
 
 ```groovy
-provided 'com.gabrielittner.auto.cursor:auto-value-cursor:0.2-SNAPSHOT'
+apt 'com.gabrielittner.auto.cursor:auto-value-cursor:0.2-SNAPSHOT'
+// if you need the @ColumnName annotation also include this:
+provided 'com.gabrielittner.auto.cursor:auto-value-cursor-annotations:0.2-SNAPSHOT'
 ```
 
 Snapshots of the development version are available in [Sonatype's `snapshots` repository][snap].
