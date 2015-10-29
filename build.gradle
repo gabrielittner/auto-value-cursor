@@ -1,28 +1,23 @@
-import org.gradle.internal.jvm.Jvm
-
-apply plugin: 'java'
-apply plugin: 'maven-publish'
-
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
-
-repositories {
-    maven {
-        url 'http://oss.sonatype.org/content/repositories/snapshots'
+allprojects {
+    repositories {
+        maven {
+            url 'http://oss.sonatype.org/content/repositories/snapshots'
+        }
+        mavenCentral()
     }
-    mavenCentral()
 }
 
-dependencies {
-    compile 'com.squareup:javapoet:1.1.0'
-    compile 'com.google.auto.value:auto-value:1.2-SNAPSHOT'
-    compile 'com.google.auto.service:auto-service:1.0-rc2'
 
-    testCompile 'junit:junit:4.11'
-    testCompile 'com.google.truth:truth:0.27'
-    testCompile 'com.google.testing.compile:compile-testing:0.7'
-    testCompile files(Jvm.current().getToolsJar())
-    testCompile 'com.google.code.findbugs:jsr305:3.0.0'
+ext {
+    javaVersion = JavaVersion.VERSION_1_7
 }
 
-apply from: rootProject.file('gradle/mvn-push.gradle')
+ext.deps = [
+        javapoet: 'com.squareup:javapoet:1.3.0',
+        auto_value: 'com.google.auto.value:auto-value:1.2-SNAPSHOT',
+        auto_service: 'com.google.auto.service:auto-service:1.0-rc2',
+        junit: 'junit:junit:4.12',
+        truth: 'com.google.truth:truth:0.27',
+        compile_testing: 'com.google.testing.compile:compile-testing:0.8',
+        jsr305: 'com.google.code.findbugs:jsr305:3.0.0'
+]

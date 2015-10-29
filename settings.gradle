@@ -1,2 +1,3 @@
-rootProject.name = 'auto-value-cursor'
+rootProject.name = 'auto-value-cursor-root'
 
+include ':auto-value-cursor', ':auto-value-cursor-compiler'
