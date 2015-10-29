@@ -4,9 +4,11 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.Lists;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
@@ -16,13 +18,22 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import java.util.List;
 import java.util.Map;
+import javax.lang.model.element.TypeElement;
 
 import static javax.lang.model.element.Modifier.ABSTRACT;
 import static javax.lang.model.element.Modifier.FINAL;
+import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
 
 @AutoService(AutoValueExtension.class)
 public class AutoValueCursorExtension extends AutoValueExtension {
+
+    private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
+    private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
+    private static final String NULLABLE = "Nullable";
+
+    private static final String METHOD_NAME = "createFromCursor";
+    private static final String FIELD_NAME = "MAPPER";
 
     @Override public boolean applicable(Context context) {
         return true;
@@ -40,6 +51,10 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .superclass(ClassName.get(packageName, classToExtend))
                 .addMethod(generateConstructor(properties))
                 .addMethod(createReadMethod(className, autoValueClassName, properties));
+
+        if (projectUsesRxJava(context)) {
+            subclass.addField(createMapper(autoValueClassName));
+        }
 
         return JavaFile.builder(packageName, subclass.build())
                 .skipJavaLangImports(true)
@@ -69,10 +84,10 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private MethodSpec createReadMethod(String className, ClassName autoValueClassName,
             Map<String, ExecutableElement> properties) {
-        MethodSpec.Builder readMethod = MethodSpec.methodBuilder("createFromCursor")
+        MethodSpec.Builder readMethod = MethodSpec.methodBuilder(METHOD_NAME)
                 .addModifiers(STATIC)
                 .returns(autoValueClassName)
-                .addParameter(ClassName.get("android.database", "Cursor"), "cursor");
+                .addParameter(CURSOR, "cursor");
 
         String[] propertyNames = new String[properties.keySet().size()];
         propertyNames = properties.keySet().toArray(propertyNames);
@@ -90,7 +105,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             } else {
                 readMethod.addCode("$T $N = null; // type can't be read from cursor\n", type, name);
 
-                if (columnName != null || !hasAnnotationWithName(element, "Nullable")) {
+                if (columnName != null || !hasAnnotationWithName(element, NULLABLE)) {
                     // a) user wanted to explicitly map this unsupported field
                     // b) unsupported field can't be null
                     // TODO fail here immediately
@@ -141,6 +156,23 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return null;
     }
 
+    private FieldSpec createMapper(ClassName autoValueClassName) {
+        TypeName func1Type = ParameterizedTypeName.get(FUNC1, CURSOR, autoValueClassName);
+        TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
+                .addSuperinterface(func1Type)
+                .addMethod(MethodSpec.methodBuilder("call")
+                        .addAnnotation(Override.class)
+                        .addModifiers(PUBLIC)
+                        .addParameter(CURSOR, "c")
+                        .returns(autoValueClassName)
+                        .addStatement("return $L($N)", METHOD_NAME, "c")
+                        .build())
+                .build();
+        return FieldSpec.builder(func1Type, FIELD_NAME, STATIC, FINAL)
+                .initializer("$L", func1)
+                .build();
+    }
+
     private static String getColumnName(ExecutableElement element) {
         ColumnName columnName = element.getAnnotation(ColumnName.class);
         return columnName != null ? columnName.value() : null;
@@ -154,5 +186,11 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             }
         }
         return false;
+    }
+
+    private static boolean projectUsesRxJava(Context context) {
+        TypeElement func1 = context.processingEnvironment().getElementUtils()
+                .getTypeElement(FUNC1.packageName() + "." + FUNC1.simpleName());
+        return func1 != null;
     }
 }
