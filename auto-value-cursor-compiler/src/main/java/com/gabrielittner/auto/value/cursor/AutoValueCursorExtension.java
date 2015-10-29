@@ -16,8 +16,9 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import java.util.List;
 import java.util.Map;
-import javax.lang.model.element.Modifier;
 
+import static javax.lang.model.element.Modifier.ABSTRACT;
+import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.STATIC;
 
 @AutoService(AutoValueExtension.class)
@@ -35,7 +36,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         Map<String, ExecutableElement> properties = context.properties();
 
         TypeSpec.Builder subclass = TypeSpec.classBuilder(className)
-                .addModifiers(isFinal ? Modifier.FINAL : Modifier.ABSTRACT)
+                .addModifiers(isFinal ? FINAL : ABSTRACT)
                 .superclass(ClassName.get(packageName, classToExtend))
                 .addMethod(generateConstructor(properties))
                 .addMethod(createReadMethod(className, autoValueClassName, properties));
