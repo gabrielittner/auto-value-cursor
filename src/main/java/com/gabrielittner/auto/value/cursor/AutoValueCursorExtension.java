@@ -113,7 +113,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             format.append("$L");
         }
         format.append(")");
-        readMethod.addStatement(format.toString(), propertyNames);
+        readMethod.addStatement(format.toString(), (Object[]) propertyNames);
 
         return readMethod.build();
     }
