@@ -28,18 +28,19 @@ public class AutoValueCursorExtensionTest {
                 "cursor.getString(cursor.getColumnIndexOrThrow(\"column_a\");");
     }
 
-    // will generate null field, but method will effectively always throw when executed
-    // TODO when there is an explicit opt-in this test should fail to compile
     @Test public void unsupported() {
-        simpleTypeTest("", "int[]", "null; // type can't be read from cursor");
+        JavaFileObject source = getSource("public abstract int[] a();\n");
+
+        assertAbout(javaSources())
+                .that(Collections.singletonList(source))
+                .processedWith(new AutoValueProcessor())
+                .failsToCompile();
     }
 
-    // will generate null field
     @Test public void unsupportedWithNullable() {
         simpleTypeTest("@Nullable ", "int[]", "null; // type can't be read from cursor");
     }
 
-    // will fail
     @Test public void unsupportedWithColumnName() {
         JavaFileObject source = getSource("@ColumnName(\"column_i\") public abstract int[] a();\n");
 
@@ -49,36 +50,8 @@ public class AutoValueCursorExtensionTest {
                 .failsToCompile();
     }
 
-    // will fail
     @Test public void unsupportedWithColumnNameAndNullable() {
-        JavaFileObject source = getSource("@ColumnName(\"column_i\") @Nullable public abstract int[] a();\n");
-
-        assertAbout(javaSources())
-                .that(Collections.singletonList(source))
-                .processedWith(new AutoValueProcessor())
-                .failsToCompile();
-    }
-
-    // will fail
-    @Test public void unsupportedWithoutColumnName() {
-        JavaFileObject source = getSource("@ColumnName(\"column_i\") public abstract int a();\n"
-                + "  public abstract int[] b();\n");
-
-        assertAbout(javaSources())
-                .that(Collections.singletonList(source))
-                .processedWith(new AutoValueProcessor())
-                .failsToCompile();
-    }
-
-    // will generate null field
-    @Test public void unsupportedWithoutColumnNameAndWithNullable() {
-        JavaFileObject source = getSource("@ColumnName(\"column_i\") public abstract int a();\n"
-                + "  @Nullable public abstract int[] b();\n");
-
-        assertAbout(javaSources())
-                .that(Collections.singletonList(source))
-                .processedWith(new AutoValueProcessor())
-                .compilesWithoutError();
+        simpleTypeTest("@Nullable @ColumnName(\"column_i\")", "int[]", "null; // type can't be read from cursor");
     }
 
     @Test public void types() {
@@ -120,7 +93,9 @@ public class AutoValueCursorExtensionTest {
                         + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
                         + "import com.google.auto.value.AutoValue;\n"
                         + "import javax.annotation.Nullable;\n"
+                        + "import android.database.Cursor;\n"
                         + "@AutoValue public abstract class Test {\n"
+                        + "  public static Test blah(Cursor cursor) { return null; }\n"
                         + "  " + fields
                         + "}\n"
         );
@@ -138,7 +113,7 @@ public class AutoValueCursorExtensionTest {
                         + "    super(" + constructorSuperArgs + ");\n"
                         + "  }\n"
                         + "\n"
-                        + "  static Test createFromCursor(Cursor cursor) {\n"
+                        + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
                         + "    " + mapping + "\n"
                         + "    return new AutoValue_Test(" + constructorSuperArgs + ");\n"
                         + "  }\n"
