@@ -11,14 +11,16 @@ import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import java.util.List;
-import java.util.Map;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 
 import static javax.lang.model.element.Modifier.ABSTRACT;
 import static javax.lang.model.element.Modifier.FINAL;
@@ -36,24 +38,56 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     private static final String FIELD_NAME = "MAPPER";
 
     @Override public boolean applicable(Context context) {
-        return true;
+        TypeElement autoValueClass = context.autoValueClass();
+        List<? extends Element> elements = autoValueClass.getEnclosedElements();
+        for (Element element : elements) {
+            // searching for a static method
+            if (element.getKind() != ElementKind.METHOD
+                    || !element.getModifiers().contains(Modifier.STATIC)) {
+                continue;
+            }
+            ExecutableElement method = (ExecutableElement) element;
+            // that method should return the annotated class and take a Cursor as parameter
+            // or return a Func1<Cursor, "annotated class"> and don't have any parameters
+            if (methodTakesAndReturns(method, CURSOR, ClassName.get(context.autoValueClass().asType()))
+                    || methodTakesAndReturns(method, null, getFunc1Name(context))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean methodTakesAndReturns(ExecutableElement method, TypeName takes, TypeName returns) {
+        List<? extends VariableElement> parameters = method.getParameters();
+        if (takes != null) {
+            if (parameters.size() != 1) {
+                return false;
+            }
+            if (!takes.equals(ClassName.get(parameters.get(0).asType()))) {
+                return false;
+            }
+        } else {
+            if (parameters.size() > 0) {
+                return false;
+            }
+        }
+
+        return returns.equals(ClassName.get(method.getReturnType()));
     }
 
     @Override public String generateClass(Context context, String className, String classToExtend,
             boolean isFinal) {
         String packageName = context.packageName();
-        ClassName autoValueClassName = ClassName.get(packageName,
-                context.autoValueClass().getSimpleName().toString());
         Map<String, ExecutableElement> properties = context.properties();
 
         TypeSpec.Builder subclass = TypeSpec.classBuilder(className)
                 .addModifiers(isFinal ? FINAL : ABSTRACT)
                 .superclass(ClassName.get(packageName, classToExtend))
                 .addMethod(generateConstructor(properties))
-                .addMethod(createReadMethod(className, autoValueClassName, properties));
+                .addMethod(createReadMethod(context, className, properties));
 
         if (projectUsesRxJava(context)) {
-            subclass.addField(createMapper(autoValueClassName));
+            subclass.addField(createMapper(context, className));
         }
 
         return JavaFile.builder(packageName, subclass.build())
@@ -82,17 +116,16 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .build();
     }
 
-    private MethodSpec createReadMethod(String className, ClassName autoValueClassName,
+    private MethodSpec createReadMethod(Context context, String className,
             Map<String, ExecutableElement> properties) {
+        ClassName returnType = getReturnType(context, className);
         MethodSpec.Builder readMethod = MethodSpec.methodBuilder(METHOD_NAME)
                 .addModifiers(STATIC)
-                .returns(autoValueClassName)
+                .returns(returnType)
                 .addParameter(CURSOR, "cursor");
 
         String[] propertyNames = new String[properties.keySet().size()];
         propertyNames = properties.keySet().toArray(propertyNames);
-        String unsupportedNotNullableProp = null;
-        boolean hasFieldWithColumnName = false;
         for (String name : propertyNames) {
             ExecutableElement element = properties.get(name);
             TypeName type = TypeName.get(element.getReturnType());
@@ -103,26 +136,16 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 readMethod.addStatement(cursorMethod, type, name,
                         columnName != null ? columnName : name);
             } else {
-                readMethod.addCode("$T $N = null; // type can't be read from cursor\n", type, name);
-
-                if (columnName != null || !hasAnnotationWithName(element, NULLABLE)) {
-                    // a) user wanted to explicitly map this unsupported field
-                    // b) unsupported field can't be null
-                    // TODO fail here immediately
-                    // not doing it right now because there is no opt in to auto-value-cursor
-                    unsupportedNotNullableProp = name;
+                if (!hasAnnotationWithName(element, NULLABLE)) {
+                    throw new IllegalArgumentException(String.format("Property %s has a type that "
+                            + "can't be read from Cursor.", name));
                 }
+                readMethod.addCode("$T $N = null; // type can't be read from cursor\n", type, name);
             }
-            if (columnName != null) hasFieldWithColumnName = true;
-        }
-
-        if (hasFieldWithColumnName && unsupportedNotNullableProp != null) {
-            throw new IllegalArgumentException(String.format("Property %s has a type that can't be"
-                    + " read from Cursor.", unsupportedNotNullableProp));
         }
 
         StringBuilder format = new StringBuilder("return new ");
-        format.append(className.replaceAll("\\$", ""));
+        format.append(returnType.simpleName());
         format.append("(");
         for (int i = 0; i < propertyNames.length; i++) {
             if (i > 0) format.append(", ");
@@ -156,21 +179,31 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return null;
     }
 
-    private FieldSpec createMapper(ClassName autoValueClassName) {
-        TypeName func1Type = ParameterizedTypeName.get(FUNC1, CURSOR, autoValueClassName);
+    private FieldSpec createMapper(Context context, String className) {
+        TypeName func1Name = getFunc1Name(context);
         TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
-                .addSuperinterface(func1Type)
+                .addSuperinterface(func1Name)
                 .addMethod(MethodSpec.methodBuilder("call")
                         .addAnnotation(Override.class)
                         .addModifiers(PUBLIC)
                         .addParameter(CURSOR, "c")
-                        .returns(autoValueClassName)
+                        .returns(getReturnType(context, className))
                         .addStatement("return $L($N)", METHOD_NAME, "c")
                         .build())
                 .build();
-        return FieldSpec.builder(func1Type, FIELD_NAME, STATIC, FINAL)
+        return FieldSpec.builder(func1Name, FIELD_NAME, STATIC, FINAL)
                 .initializer("$L", func1)
                 .build();
+    }
+
+    private ClassName getReturnType(Context context, String className) {
+        return ClassName.get(context.packageName(), className.replaceAll("\\$", ""));
+    }
+
+    private TypeName getFunc1Name(Context context) {
+        ClassName autoValueClassName = ClassName.get(context.packageName(),
+                context.autoValueClass().getSimpleName().toString());
+        return ParameterizedTypeName.get(FUNC1, CURSOR, autoValueClassName);
     }
 
     private static String getColumnName(ExecutableElement element) {

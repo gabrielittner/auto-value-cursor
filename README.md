@@ -17,11 +17,21 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
   // use the annotation if column name and field name aren't the same
   @ColumnName("email_address") abstract String email();
 
-  public static Foo create(Cursor cursor) {
-    return AutoValue_Foo.createFromCursor(cursor);
+  public static User create(Cursor cursor) {
+    return AutoValue_User.createFromCursor(cursor);
+  }
+
+  // if you're project includes rxjava the extension will generate a Func1<Cursor, User> for you
+  public static Func1<Cursor, User> mapper() {
+    return AutoValue_User.MAPPER;
   }
 }
 ```
+
+**Important:** The extension will only be applied when there is (replace `User` with your own class)
+- a static method that returns `User` and takes a `Cursor` as parameter
+- a static method that returns a `Func1<Cursor, User>`
+- or both mentioned methods
 
 ## Download
 
