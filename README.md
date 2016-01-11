@@ -21,7 +21,7 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
     return AutoValue_User.createFromCursor(cursor);
   }
 
-  // if you're project includes rxjava the extension will generate a Func1<Cursor, User> for you
+  // if your project includes RxJava the extension will generate a Func1<Cursor, User> for you
   public static Func1<Cursor, User> mapper() {
     return AutoValue_User.MAPPER;
   }
@@ -32,6 +32,62 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 - a static method that returns `User` and takes a `Cursor` as parameter
 - a static method that returns a `Func1<Cursor, User>`
 - or both mentioned methods
+
+The following types are supported by default:
+
+ * `byte[]`/`Byte[]`
+ * `double`/`Double`
+ * `float`/`Float`
+ * `int`/`Integer`
+ * `long`/`Long`
+ * `short`/`Short`
+ * `String`
+ * `boolean`/`Boolean`
+
+For other types, you need to use the `@CursorAdapter` annotation and specify a factory
+class that will be used to construct the type from the `Cursor` object. By convention, this factory
+class needs to have a public static method that takes the `Cursor` and returns the
+custom type. Eg.:
+
+`User.java`:
+
+```java
+@AutoValue public abstract class User {
+  abstract String id();
+  abstract String name();
+  @AutoValueCursorFactory(AvatarFactory.class) Avatar avatar();
+
+  public static User createFromCursor(Cursor cursor) {
+    return AutoValue_User.createFromCursor(cursor);
+  }
+}
+```
+
+`AvatarFactory.java`:
+
+```java
+public class AvatarFactory {
+  public static Avatar createFromCursor(Cursor cursor) {
+    String smallImageUrl = cursor.getString(cursor.getColumnIndex("small_image_url");
+    String largeImageUrl = cursor.getString(cursor.getColumnIndex("large_image_url");
+    return new Avatar(smallImageUrl, largeImageUrl);
+  }
+}
+```
+
+`Avatar.java`:
+
+```java
+public class Avatar {
+  private final String smallImageUrl;
+  private final String largeImageUrl;
+
+  public Avatar(String smallImageUrl, String largeImageUrl) {
+    this.smallImageUrl = smallImageUrl;
+    this.largeImageUrl = largeImageUrl;
+  }
+}
+```
 
 ## Download
 

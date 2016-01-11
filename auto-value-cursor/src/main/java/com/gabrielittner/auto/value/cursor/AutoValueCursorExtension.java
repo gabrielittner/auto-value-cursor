@@ -3,29 +3,17 @@ package com.gabrielittner.auto.value.cursor;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.Lists;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
-import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.ParameterSpec;
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
-import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.*;
+
+import javax.lang.model.element.*;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import java.util.Set;
 
-import static javax.lang.model.element.Modifier.ABSTRACT;
-import static javax.lang.model.element.Modifier.FINAL;
-import static javax.lang.model.element.Modifier.PUBLIC;
-import static javax.lang.model.element.Modifier.STATIC;
+import static javax.lang.model.element.Modifier.*;
 
 @AutoService(AutoValueExtension.class)
 public class AutoValueCursorExtension extends AutoValueExtension {
@@ -48,8 +36,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             }
             ExecutableElement method = (ExecutableElement) element;
             // that method should return the annotated class and take a Cursor as parameter
-            // or return a Func1<Cursor, "annotated class"> and don't have any parameters
-            if (methodTakesAndReturns(method, CURSOR, ClassName.get(context.autoValueClass().asType()))
+            // or return a Func1<Cursor, "annotated class"> and not have any parameters
+            if (methodTakesAndReturns(method, CURSOR, ClassName.get(autoValueClass.asType()))
                     || methodTakesAndReturns(method, null, getFunc1Name(context))) {
                 return true;
             }
@@ -124,21 +112,28 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .returns(returnType)
                 .addParameter(CURSOR, "cursor");
 
-        String[] propertyNames = new String[properties.keySet().size()];
-        propertyNames = properties.keySet().toArray(propertyNames);
+        Set<String> keySet = properties.keySet();
+        String[] propertyNames = new String[keySet.size()];
+        propertyNames = keySet.toArray(propertyNames);
         for (String name : propertyNames) {
             ExecutableElement element = properties.get(name);
             TypeName type = TypeName.get(element.getReturnType());
-
             String cursorMethod = getCursorMethod(type);
             String columnName = getColumnName(element);
+            TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
+            Types typeUtils = context.processingEnvironment().getTypeUtils();
             if (cursorMethod != null) {
                 readMethod.addStatement(cursorMethod, type, name,
                         columnName != null ? columnName : name);
+            } else if (factoryTypeMirror != null) {
+                String methodName = getFactoryMethodName(type,
+                        (TypeElement) typeUtils.asElement(factoryTypeMirror));
+                TypeName factoryType = TypeName.get(factoryTypeMirror);
+                readMethod.addStatement("$T $N = $T.$N(cursor)", type, name, factoryType, methodName);
             } else {
                 if (!hasAnnotationWithName(element, NULLABLE)) {
-                    throw new IllegalArgumentException(String.format("Property %s has a type that "
-                            + "can't be read from Cursor.", name));
+                    throw new IllegalArgumentException(String.format("Property %s has type %s that "
+                            + "can't be read from Cursor.", name, type));
                 }
                 readMethod.addCode("$T $N = null; // type can't be read from cursor\n", type, name);
             }
@@ -161,19 +156,26 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         if (type.equals(TypeName.get(byte[].class)) || type.equals(
                 TypeName.get(Byte[].class))) {
             return "$T $N = cursor.getBlob(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.DOUBLE) || type.equals(TypeName.DOUBLE.box())) {
+        }
+        if (type.equals(TypeName.DOUBLE) || type.equals(TypeName.DOUBLE.box())) {
             return "$T $N = cursor.getDouble(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.FLOAT) || type.equals(TypeName.FLOAT.box())) {
+        }
+        if (type.equals(TypeName.FLOAT) || type.equals(TypeName.FLOAT.box())) {
             return "$T $N = cursor.getFloat(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.INT) || type.equals(TypeName.INT.box())) {
+        }
+        if (type.equals(TypeName.INT) || type.equals(TypeName.INT.box())) {
             return "$T $N = cursor.getInt(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.LONG) || type.equals(TypeName.LONG.box())) {
+        }
+        if (type.equals(TypeName.LONG) || type.equals(TypeName.LONG.box())) {
             return "$T $N = cursor.getLong(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.SHORT) || type.equals(TypeName.SHORT.box())) {
+        }
+        if (type.equals(TypeName.SHORT) || type.equals(TypeName.SHORT.box())) {
             return "$T $N = cursor.getShort(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.get(String.class))) {
+        }
+        if (type.equals(TypeName.get(String.class))) {
             return "$T $N = cursor.getString(cursor.getColumnIndexOrThrow($S))";
-        } else if (type.equals(TypeName.BOOLEAN) || type.equals(TypeName.BOOLEAN.box())) {
+        }
+        if (type.equals(TypeName.BOOLEAN) || type.equals(TypeName.BOOLEAN.box())) {
             return "$T $N = cursor.getInt(cursor.getColumnIndexOrThrow($S)) == 1";
         }
         return null;
@@ -219,6 +221,55 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             }
         }
         return false;
+    }
+
+    private static AnnotationMirror getAnnotationMirror(Element element, Class<?> clazz) {
+        String clazzName = clazz.getName();
+        for (AnnotationMirror m : element.getAnnotationMirrors()) {
+            if (m.getAnnotationType().toString().equals(clazzName)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    private static AnnotationValue getAnnotationValue(AnnotationMirror annotationMirror, String key) {
+        for (Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                annotationMirror.getElementValues().entrySet()) {
+            if (entry.getKey().getSimpleName().toString().equals(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    public TypeMirror getFactoryTypeMirror(Element element) {
+        AnnotationMirror annotationMirror =
+                getAnnotationMirror(element, CursorAdapter.class);
+        if (annotationMirror == null) {
+            return null;
+        }
+        AnnotationValue annotationValue = getAnnotationValue(annotationMirror, "value");
+        return annotationValue == null ? null : (TypeMirror) annotationValue.getValue();
+    }
+
+    private String getFactoryMethodName(TypeName returnType, TypeElement factoryClass) {
+        List<? extends Element> elements = factoryClass.getEnclosedElements();
+        for (Element element : elements) {
+            // searching for a static method
+            if (element.getKind() != ElementKind.METHOD
+                    || !element.getModifiers().contains(Modifier.STATIC)) {
+                continue;
+            }
+            ExecutableElement method = (ExecutableElement) element;
+            // that method should return the annotated class and take a Cursor as parameter
+            if (methodTakesAndReturns(method, CURSOR, returnType)) {
+                return method.getSimpleName().toString();
+            }
+        }
+        throw new IllegalArgumentException(String.format("Class \"%s\" needs to define a "
+                + "public static method taking a \"Cursor\" and returning \"%s\"",
+                factoryClass.getSimpleName(), returnType.toString()));
     }
 
     private static boolean projectUsesRxJava(Context context) {
