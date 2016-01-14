@@ -42,6 +42,7 @@ apt 'com.gabrielittner.auto.cursor:auto-value-cursor:0.2-SNAPSHOT'
 // if you need the @ColumnName annotation also include this:
 provided 'com.gabrielittner.auto.cursor:auto-value-cursor-annotations:0.2-SNAPSHOT'
 ```
+(Using the [android-apt][apt] plugin)
 
 Snapshots of the development version are available in [Sonatype's `snapshots` repository][snap].
 
