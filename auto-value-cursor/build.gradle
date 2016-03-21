@@ -1,7 +1,6 @@
 import org.gradle.internal.jvm.Jvm
 
 apply plugin: 'java'
-apply plugin: 'maven-publish'
 
 sourceCompatibility = rootProject.ext.javaVersion
 targetCompatibility = rootProject.ext.javaVersion
