@@ -2,7 +2,6 @@
 
 An extension for Google's [AutoValue][auto] that generates a `createFromCursor(Cursor c)` method for AutoValue annotated objects.
 
-**Note**: This is an early version that requires the extension support currently in AutoValue 1.2-SNAPSHOT.
 
 ## Usage
 
@@ -94,11 +93,28 @@ public class Avatar {
 Add a Gradle dependency:
 
 ```groovy
-apt 'com.gabrielittner.auto.value:auto-value-cursor:0.2-SNAPSHOT'
+apt 'com.gabrielittner.auto.value:auto-value-cursor:0.2.0'
 // if you need the @ColumnName annotation also include this:
-provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.2-SNAPSHOT'
+provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.2.0'
 ```
 (Using the [android-apt][apt] plugin)
+
+
+or Maven:
+```xml
+<dependency>
+  <groupId>com.gabrielittner.auto.value</groupId>
+  <artifactId>auto-value-cursor</artifactId>
+  <version>0.2.0</version>
+  <scope>provided</scope>
+</dependency>
+<dependency>
+  <groupId>com.gabrielittner.auto.value</groupId>
+  <artifactId>auto-value-cursor-annotations</artifactId>
+  <version>0.2.0</version>
+  <scope>provided</scope>
+</dependency>
+```
 
 Snapshots of the development version are available in [Sonatype's `snapshots` repository][snap].
 
