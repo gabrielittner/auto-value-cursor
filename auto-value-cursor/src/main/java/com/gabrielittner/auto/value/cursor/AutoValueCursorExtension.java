@@ -10,7 +10,9 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -37,6 +39,8 @@ import static javax.lang.model.element.Modifier.STATIC;
 public class AutoValueCursorExtension extends AutoValueExtension {
 
     private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
+    private static final ClassName CONTENT_VALUES = ClassName.get("android.content",
+            "ContentValues");
     private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
     private static final String NULLABLE = "Nullable";
 
@@ -48,7 +52,17 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     public boolean applicable(Context context) {
         TypeElement valueClass = context.autoValueClass();
         return hasMethod(valueClass, false, true, CURSOR, ClassName.get(valueClass.asType()))
-                || hasMethod(valueClass, false, true, CURSOR, getFunc1TypeName(context));
+                || hasMethod(valueClass, false, true, CURSOR, getFunc1TypeName(context))
+                || hasMethod(valueClass, true, false, null, CONTENT_VALUES);
+    }
+
+    @Override public Set<String> consumeProperties(Context context) {
+        ExecutableElement method = getMethod(context.autoValueClass(), true, false, null,
+                CONTENT_VALUES);
+        if (method != null) {
+            return Collections.singleton(method.getSimpleName().toString());
+        }
+        return Collections.emptySet();
     }
 
     @Override
@@ -61,6 +75,12 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
         if (typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
             subclass.addField(createMapper(context));
+        }
+
+        ExecutableElement method = getMethod(context.autoValueClass(), true, false, null,
+                CONTENT_VALUES);
+        if (method != null) {
+            subclass.addMethod(createToContentValuesMethod(method, properties));
         }
 
         return JavaFile.builder(context.packageName(), subclass.build())
@@ -180,5 +200,30 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private TypeName getFunc1TypeName(Context context) {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
+    }
+
+    private MethodSpec createToContentValuesMethod(ExecutableElement method,
+            Map<String, ExecutableElement> properties) {
+        MethodSpec.Builder builder = MethodSpec.methodBuilder(method.getSimpleName().toString())
+                .addModifiers(PUBLIC)
+                .returns(CONTENT_VALUES)
+                .addStatement("$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
+        for (Map.Entry<String, ExecutableElement> entry : properties.entrySet()) {
+            String name = entry.getKey();
+            ExecutableElement element = entry.getValue();
+            TypeName type = TypeName.get(element.getReturnType());
+
+            if (getCursorMethod(type) == null) {
+                throw new IllegalArgumentException(String.format("Property \"%s\" has type "
+                        + "\"%s\" that can't be put into ContentValues.", name, type));
+            }
+
+            String columnName = getColumnName(element);
+            if (columnName == null) columnName = entry.getKey();
+
+            builder.addStatement("values.put($S, $L())", columnName, name);
+        }
+        return builder.addStatement("return values")
+                .build();
     }
 }

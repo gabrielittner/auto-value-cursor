@@ -24,6 +24,10 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
   public static Func1<Cursor, User> mapper() {
     return AutoValue_User.MAPPER;
   }
+
+  // Optional: When you include an abstract method that returns ContentValues and doesn't have
+  // any parameters the extension will implement it for you
+  abstract ContentValues toContentValues();
 }
 ```
 
@@ -34,7 +38,7 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 
 The following types are supported by default:
 
- * `byte[]`/`Byte[]`
+ * `byte[]`
  * `double`/`Double`
  * `float`/`Float`
  * `int`/`Integer`
