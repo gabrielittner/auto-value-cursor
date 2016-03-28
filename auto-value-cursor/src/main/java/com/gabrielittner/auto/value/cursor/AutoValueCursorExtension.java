@@ -64,7 +64,6 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         }
 
         return JavaFile.builder(context.packageName(), subclass.build())
-                .skipJavaLangImports(true)
                 .build()
                 .toString();
     }
@@ -96,8 +95,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                             factoryType, methodName);
                 } else {
                     if (!hasAnnotationWithName(element, NULLABLE)) {
-                        throw new IllegalArgumentException(String.format("Property %s has type %s "
-                                + "that can't be read from Cursor.", name, type));
+                        throw new IllegalArgumentException(String.format("Property \"%s\" has type "
+                                + "\"%s\" that can't be read from Cursor.", name, type));
                     }
                     readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
                 }
