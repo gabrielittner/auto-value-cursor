@@ -2,11 +2,10 @@ package com.gabrielittner.auto.value.cursor;
 
 import com.google.auto.value.processor.AutoValueProcessor;
 import com.google.testing.compile.JavaFileObjects;
-import org.junit.Test;
-
-import javax.tools.JavaFileObject;
 import java.util.Arrays;
 import java.util.Collections;
+import javax.tools.JavaFileObject;
+import org.junit.Test;
 
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.testing.compile.JavaSourcesSubjectFactory.javaSources;

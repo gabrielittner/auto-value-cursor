@@ -2,18 +2,36 @@ package com.gabrielittner.auto.value.cursor;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
-import com.google.common.collect.Lists;
-import com.squareup.javapoet.*;
-
-import javax.lang.model.element.*;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import java.util.Map;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 
-import static javax.lang.model.element.Modifier.*;
+import static com.gabrielittner.auto.value.util.AnnotationUtil.getAnnotationMirror;
+import static com.gabrielittner.auto.value.util.AnnotationUtil.getAnnotationValue;
+import static com.gabrielittner.auto.value.util.AnnotationUtil.hasAnnotationWithName;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.generateFinalClassConstructorCall;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.getAutoValueClassClassName;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.getFinalClassClassName;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.typeSpecBuilder;
+import static com.gabrielittner.auto.value.util.ElementUtil.getMethod;
+import static com.gabrielittner.auto.value.util.ElementUtil.hasMethod;
+import static com.gabrielittner.auto.value.util.ElementUtil.typeExists;
+import static javax.lang.model.element.Modifier.FINAL;
+import static javax.lang.model.element.Modifier.PUBLIC;
+import static javax.lang.model.element.Modifier.STATIC;
 
 @AutoService(AutoValueExtension.class)
 public class AutoValueCursorExtension extends AutoValueExtension {
@@ -23,133 +41,72 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     private static final String NULLABLE = "Nullable";
 
     private static final String METHOD_NAME = "createFromCursor";
-    private static final String FIELD_NAME = "MAPPER";
+    private static final String FUNC1_FIELD_NAME = "MAPPER";
+    private static final String FUNC1_METHOD_NAME = "call";
 
-    @Override public boolean applicable(Context context) {
-        TypeElement autoValueClass = context.autoValueClass();
-        List<? extends Element> elements = autoValueClass.getEnclosedElements();
-        for (Element element : elements) {
-            // searching for a static method
-            if (element.getKind() != ElementKind.METHOD
-                    || !element.getModifiers().contains(Modifier.STATIC)) {
-                continue;
-            }
-            ExecutableElement method = (ExecutableElement) element;
-            // that method should return the annotated class and take a Cursor as parameter
-            // or return a Func1<Cursor, "annotated class"> and not have any parameters
-            if (methodTakesAndReturns(method, CURSOR, ClassName.get(autoValueClass.asType()))
-                    || methodTakesAndReturns(method, null, getFunc1Name(context))) {
-                return true;
-            }
-        }
-        return false;
+    @Override
+    public boolean applicable(Context context) {
+        TypeElement valueClass = context.autoValueClass();
+        return hasMethod(valueClass, false, true, CURSOR, ClassName.get(valueClass.asType()))
+                || hasMethod(valueClass, false, true, CURSOR, getFunc1TypeName(context));
     }
 
-    private boolean methodTakesAndReturns(ExecutableElement method, TypeName takes, TypeName returns) {
-        List<? extends VariableElement> parameters = method.getParameters();
-        if (takes != null) {
-            if (parameters.size() != 1) {
-                return false;
-            }
-            if (!takes.equals(ClassName.get(parameters.get(0).asType()))) {
-                return false;
-            }
-        } else {
-            if (parameters.size() > 0) {
-                return false;
-            }
-        }
-
-        return returns.equals(ClassName.get(method.getReturnType()));
-    }
-
-    @Override public String generateClass(Context context, String className, String classToExtend,
+    @Override
+    public String generateClass(Context context, String className, String classToExtend,
             boolean isFinal) {
-        String packageName = context.packageName();
         Map<String, ExecutableElement> properties = context.properties();
 
-        TypeSpec.Builder subclass = TypeSpec.classBuilder(className)
-                .addModifiers(isFinal ? FINAL : ABSTRACT)
-                .superclass(ClassName.get(packageName, classToExtend))
-                .addMethod(generateConstructor(properties))
-                .addMethod(createReadMethod(context, className, properties));
+        TypeSpec.Builder subclass = typeSpecBuilder(context, className, classToExtend, isFinal)
+                .addMethod(createReadMethod(context, properties));
 
-        if (projectUsesRxJava(context)) {
-            subclass.addField(createMapper(context, className));
+        if (typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
+            subclass.addField(createMapper(context));
         }
 
-        return JavaFile.builder(packageName, subclass.build())
+        return JavaFile.builder(context.packageName(), subclass.build())
                 .skipJavaLangImports(true)
                 .build()
                 .toString();
     }
 
-    private MethodSpec generateConstructor(Map<String, ExecutableElement> properties) {
-        List<ParameterSpec> params = Lists.newArrayList();
-        for (Entry<String, ExecutableElement> entry : properties.entrySet()) {
-            TypeName typeName = TypeName.get(entry.getValue().getReturnType());
-            params.add(ParameterSpec.builder(typeName, entry.getKey()).build());
-        }
-
-        StringBuilder superFormat = new StringBuilder("super(");
-        for (int i = properties.size(); i > 0; i--) {
-            superFormat.append("$N");
-            if (i > 1) superFormat.append(", ");
-        }
-        superFormat.append(")");
-
-        return MethodSpec.constructorBuilder()
-                .addParameters(params)
-                .addStatement(superFormat.toString(), properties.keySet().toArray())
-                .build();
-    }
-
-    private MethodSpec createReadMethod(Context context, String className,
+    private MethodSpec createReadMethod(Context context,
             Map<String, ExecutableElement> properties) {
-        ClassName returnType = getReturnType(context, className);
         MethodSpec.Builder readMethod = MethodSpec.methodBuilder(METHOD_NAME)
                 .addModifiers(STATIC)
-                .returns(returnType)
+                .returns(getFinalClassClassName(context))
                 .addParameter(CURSOR, "cursor");
 
-        Set<String> keySet = properties.keySet();
-        String[] propertyNames = new String[keySet.size()];
-        propertyNames = keySet.toArray(propertyNames);
-        for (String name : propertyNames) {
-            ExecutableElement element = properties.get(name);
+        Types typeUtils = context.processingEnvironment().getTypeUtils();
+        for (Map.Entry<String, ExecutableElement> entry : properties.entrySet()) {
+            ExecutableElement element = entry.getValue();
             TypeName type = TypeName.get(element.getReturnType());
+            String name = entry.getKey();
             String cursorMethod = getCursorMethod(type);
             String columnName = getColumnName(element);
-            TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
-            Types typeUtils = context.processingEnvironment().getTypeUtils();
             if (cursorMethod != null) {
                 readMethod.addStatement(cursorMethod, type, name,
                         columnName != null ? columnName : name);
-            } else if (factoryTypeMirror != null) {
-                String methodName = getFactoryMethodName(type,
-                        (TypeElement) typeUtils.asElement(factoryTypeMirror));
-                TypeName factoryType = TypeName.get(factoryTypeMirror);
-                readMethod.addStatement("$T $N = $T.$N(cursor)", type, name, factoryType, methodName);
             } else {
-                if (!hasAnnotationWithName(element, NULLABLE)) {
-                    throw new IllegalArgumentException(String.format("Property %s has type %s that "
-                            + "can't be read from Cursor.", name, type));
+                TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
+                if (factoryTypeMirror != null) {
+                    String methodName = getFactoryMethodName(type,
+                            (TypeElement) typeUtils.asElement(factoryTypeMirror));
+                    TypeName factoryType = TypeName.get(factoryTypeMirror);
+                    readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
+                            factoryType, methodName);
+                } else {
+                    if (!hasAnnotationWithName(element, NULLABLE)) {
+                        throw new IllegalArgumentException(String.format("Property %s has type %s "
+                                + "that can't be read from Cursor.", name, type));
+                    }
+                    readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
                 }
-                readMethod.addCode("$T $N = null; // type can't be read from cursor\n", type, name);
             }
         }
 
-        StringBuilder format = new StringBuilder("return new ");
-        format.append(returnType.simpleName());
-        format.append("(");
-        for (int i = 0; i < propertyNames.length; i++) {
-            if (i > 0) format.append(", ");
-            format.append("$L");
-        }
-        format.append(")");
-        readMethod.addStatement(format.toString(), (Object[]) propertyNames);
-
-        return readMethod.build();
+        Object[] propertyNames = properties.keySet().toArray();
+        CodeBlock returnCall = generateFinalClassConstructorCall(context, propertyNames);
+        return readMethod.addCode("return ").addCode(returnCall).build();
     }
 
     private static String getCursorMethod(TypeName type) {
@@ -181,71 +138,13 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return null;
     }
 
-    private FieldSpec createMapper(Context context, String className) {
-        TypeName func1Name = getFunc1Name(context);
-        TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
-                .addSuperinterface(func1Name)
-                .addMethod(MethodSpec.methodBuilder("call")
-                        .addAnnotation(Override.class)
-                        .addModifiers(PUBLIC)
-                        .addParameter(CURSOR, "c")
-                        .returns(getReturnType(context, className))
-                        .addStatement("return $L($N)", METHOD_NAME, "c")
-                        .build())
-                .build();
-        return FieldSpec.builder(func1Name, FIELD_NAME, STATIC, FINAL)
-                .initializer("$L", func1)
-                .build();
-    }
-
-    private ClassName getReturnType(Context context, String className) {
-        return ClassName.get(context.packageName(), className.replaceAll("\\$", ""));
-    }
-
-    private TypeName getFunc1Name(Context context) {
-        ClassName autoValueClassName = ClassName.get(context.packageName(),
-                context.autoValueClass().getSimpleName().toString());
-        return ParameterizedTypeName.get(FUNC1, CURSOR, autoValueClassName);
-    }
-
     private static String getColumnName(ExecutableElement element) {
         ColumnName columnName = element.getAnnotation(ColumnName.class);
         return columnName != null ? columnName.value() : null;
     }
 
-    private static boolean hasAnnotationWithName(Element element, String simpleName) {
-        for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
-            String name = mirror.getAnnotationType().asElement().getSimpleName().toString();
-            if (simpleName.equals(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static AnnotationMirror getAnnotationMirror(Element element, Class<?> clazz) {
-        String clazzName = clazz.getName();
-        for (AnnotationMirror m : element.getAnnotationMirrors()) {
-            if (m.getAnnotationType().toString().equals(clazzName)) {
-                return m;
-            }
-        }
-        return null;
-    }
-
-    private static AnnotationValue getAnnotationValue(AnnotationMirror annotationMirror, String key) {
-        for (Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-                annotationMirror.getElementValues().entrySet()) {
-            if (entry.getKey().getSimpleName().toString().equals(key)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    public TypeMirror getFactoryTypeMirror(Element element) {
-        AnnotationMirror annotationMirror =
-                getAnnotationMirror(element, CursorAdapter.class);
+    private TypeMirror getFactoryTypeMirror(Element element) {
+        AnnotationMirror annotationMirror = getAnnotationMirror(element, CursorAdapter.class);
         if (annotationMirror == null) {
             return null;
         }
@@ -254,27 +153,33 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     }
 
     private String getFactoryMethodName(TypeName returnType, TypeElement factoryClass) {
-        List<? extends Element> elements = factoryClass.getEnclosedElements();
-        for (Element element : elements) {
-            // searching for a static method
-            if (element.getKind() != ElementKind.METHOD
-                    || !element.getModifiers().contains(Modifier.STATIC)) {
-                continue;
-            }
-            ExecutableElement method = (ExecutableElement) element;
-            // that method should return the annotated class and take a Cursor as parameter
-            if (methodTakesAndReturns(method, CURSOR, returnType)) {
-                return method.getSimpleName().toString();
-            }
+        ExecutableElement method = getMethod(factoryClass, false, true, CURSOR, returnType);
+        if (method != null) {
+            return method.getSimpleName().toString();
         }
         throw new IllegalArgumentException(String.format("Class \"%s\" needs to define a "
-                + "public static method taking a \"Cursor\" and returning \"%s\"",
+                        + "public static method taking a \"Cursor\" and returning \"%s\"",
                 factoryClass.getSimpleName(), returnType.toString()));
     }
 
-    private static boolean projectUsesRxJava(Context context) {
-        TypeElement func1 = context.processingEnvironment().getElementUtils()
-                .getTypeElement(FUNC1.packageName() + "." + FUNC1.simpleName());
-        return func1 != null;
+    private FieldSpec createMapper(Context context) {
+        TypeName func1Name = getFunc1TypeName(context);
+        TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
+                .addSuperinterface(func1Name)
+                .addMethod(MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
+                        .addAnnotation(Override.class)
+                        .addModifiers(PUBLIC)
+                        .addParameter(CURSOR, "c")
+                        .returns(getFinalClassClassName(context))
+                        .addStatement("return $L($N)", METHOD_NAME, "c")
+                        .build())
+                .build();
+        return FieldSpec.builder(func1Name, FUNC1_FIELD_NAME, STATIC, FINAL)
+                .initializer("$L", func1)
+                .build();
+    }
+
+    private TypeName getFunc1TypeName(Context context) {
+        return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
     }
 }
