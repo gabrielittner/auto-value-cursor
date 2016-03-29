@@ -62,7 +62,7 @@ public final class ElementUtil {
     }
 
     public static boolean typeExists(Elements elements, ClassName className) {
-        String name = className.packageName() + "." + className.toString();
+        String name = className.toString();
         return elements.getTypeElement(name) != null;
     }
 

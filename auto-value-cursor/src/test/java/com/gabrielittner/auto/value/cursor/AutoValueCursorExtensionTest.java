@@ -19,8 +19,8 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract int a();"
-                + "  public abstract String b();"
+                + "  public abstract int a();\n"
+                + "  public abstract String b();\n"
                 + "}\n"
         );
 
@@ -58,8 +58,8 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract int a();"
-                + "  @ColumnName(\"column_b\") public abstract String b();"
+                + "  public abstract int a();\n"
+                + "  @ColumnName(\"column_b\") public abstract String b();\n"
                 + "}\n"
         );
 
@@ -96,8 +96,8 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract int[] a();"
-                + "  public abstract String b();"
+                + "  public abstract int[] a();\n"
+                + "  public abstract String b();\n"
                 + "}\n"
         );
 
@@ -117,8 +117,8 @@ public class AutoValueCursorExtensionTest {
                 + "import javax.annotation.Nullable;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  @Nullable public abstract int[] a();"
-                + "  public abstract String b();"
+                + "  @Nullable public abstract int[] a();\n"
+                + "  public abstract String b();\n"
                 + "}\n"
         );
 
@@ -155,20 +155,20 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract String a();"
-                + "  public abstract int b();"
-                + "  public abstract Integer c();"
-                + "  public abstract long d();"
-                + "  public abstract Long e();"
-                + "  public abstract short f();"
-                + "  public abstract Short g();"
-                + "  public abstract double h();"
-                + "  public abstract Double i();"
-                + "  public abstract float j();"
-                + "  public abstract Float k();"
-                + "  public abstract boolean l();"
-                + "  public abstract Boolean m();"
-                + "  public abstract byte[] n();"
+                + "  public abstract String a();\n"
+                + "  public abstract int b();\n"
+                + "  public abstract Integer c();\n"
+                + "  public abstract long d();\n"
+                + "  public abstract Long e();\n"
+                + "  public abstract short f();\n"
+                + "  public abstract Short g();\n"
+                + "  public abstract double h();\n"
+                + "  public abstract Double i();\n"
+                + "  public abstract float j();\n"
+                + "  public abstract Float k();\n"
+                + "  public abstract boolean l();\n"
+                + "  public abstract Boolean m();\n"
+                + "  public abstract byte[] n();\n"
                 + "}\n"
         );
 
@@ -323,9 +323,9 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract int a();"
-                + "  public abstract String b();"
-                + "  public abstract ContentValues toContentValues();"
+                + "  public abstract int a();\n"
+                + "  public abstract String b();\n"
+                + "  public abstract ContentValues toContentValues();\n"
                 + "}\n"
         );
 
@@ -348,7 +348,7 @@ public class AutoValueCursorExtensionTest {
                 + "  }\n"
                 + "\n"
                 + "  public ContentValues toContentValues() {\n"
-                + "    ContentValues values = new ContentValues(2);"
+                + "    ContentValues values = new ContentValues(2);\n"
                 + "    values.put(\"a\", a());\n"
                 + "    values.put(\"b\", b());\n"
                 + "    return values;\n"
@@ -372,9 +372,9 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract int a();"
-                + "  @ColumnName(\"column_b\") public abstract String b();"
-                + "  public abstract ContentValues toContentValues();"
+                + "  public abstract int a();\n"
+                + "  @ColumnName(\"column_b\") public abstract String b();\n"
+                + "  public abstract ContentValues toContentValues();\n"
                 + "}\n"
         );
 
@@ -397,7 +397,7 @@ public class AutoValueCursorExtensionTest {
                 + "  }\n"
                 + "\n"
                 + "  public ContentValues toContentValues() {\n"
-                + "    ContentValues values = new ContentValues(2);"
+                + "    ContentValues values = new ContentValues(2);\n"
                 + "    values.put(\"a\", a());\n"
                 + "    values.put(\"column_b\", b());\n"
                 + "    return values;\n"
@@ -421,9 +421,9 @@ public class AutoValueCursorExtensionTest {
                 + "import javax.annotation.Nullable;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  @Nullable public abstract int[] a();"
-                + "  public abstract String b();"
-                + "  public abstract ContentValues toContentValues();"
+                + "  @Nullable public abstract int[] a();\n"
+                + "  public abstract String b();\n"
+                + "  public abstract ContentValues toContentValues();\n"
                 + "}\n"
         );
 
@@ -443,21 +443,21 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "@AutoValue public abstract class Test {\n"
                 + "  public static Test blah(Cursor cursor) { return null; }\n"
-                + "  public abstract String a();"
-                + "  public abstract int b();"
-                + "  public abstract Integer c();"
-                + "  public abstract long d();"
-                + "  public abstract Long e();"
-                + "  public abstract short f();"
-                + "  public abstract Short g();"
-                + "  public abstract double h();"
-                + "  public abstract Double i();"
-                + "  public abstract float j();"
-                + "  public abstract Float k();"
-                + "  public abstract boolean l();"
-                + "  public abstract Boolean m();"
-                + "  public abstract byte[] n();"
-                + "  public abstract ContentValues contentValues();"
+                + "  public abstract String a();\n"
+                + "  public abstract int b();\n"
+                + "  public abstract Integer c();\n"
+                + "  public abstract long d();\n"
+                + "  public abstract Long e();\n"
+                + "  public abstract short f();\n"
+                + "  public abstract Short g();\n"
+                + "  public abstract double h();\n"
+                + "  public abstract Double i();\n"
+                + "  public abstract float j();\n"
+                + "  public abstract Float k();\n"
+                + "  public abstract boolean l();\n"
+                + "  public abstract Boolean m();\n"
+                + "  public abstract byte[] n();\n"
+                + "  public abstract ContentValues contentValues();\n"
                 + "}\n"
         );
 
@@ -520,6 +520,59 @@ public class AutoValueCursorExtensionTest {
         );
 
         assertAbout(javaSources()).that(Collections.singletonList(source))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
+
+    @Test public void rxjava() {
+        JavaFileObject func1 = JavaFileObjects.forSourceString("rx.functions.Func1", ""
+                + "package rx.functions;\n"
+                + "public interface Func1<T, R> {\n"
+                + "  R call(T t);\n"
+                + "}"
+        );
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import android.database.Cursor;\n"
+                + "@AutoValue public abstract class Test {\n"
+                + "  public static Test blah(Cursor cursor) { return null; }\n"
+                + "  public abstract int a();\n"
+                + "  public abstract String b();\n"
+                + "}\n"
+        );
+
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.database.Cursor;\n"
+                + "import java.lang.Override;\n"
+                + "import java.lang.String;\n"
+                + "import rx.functions.Func1;\n"
+                + "\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  static final Func1<Cursor, Test> MAPPER = new Func1<Cursor, Test>() {\n"
+                + "    @Override\n"
+                + "    public AutoValue_Test call(Cursor c) {\n"
+                + "      return createFromCursor(c);\n"
+                + "    }\n"
+                + "  };\n"
+                + "\n"
+                + "  AutoValue_Test(int a, String b) {\n"
+                + "    super(a, b);\n"
+                + "  }\n"
+                + "\n"
+                + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
+                + "    int a = cursor.getInt(cursor.getColumnIndexOrThrow(\"a\"));\n"
+                + "    String b = cursor.getString(cursor.getColumnIndexOrThrow(\"b\"));\n"
+                + "    return new AutoValue_Test(a, b);\n"
+                + "  }\n"
+                + "}"
+        );
+
+        assertAbout(javaSources()).that(Arrays.asList(func1, source))
                 .processedWith(new AutoValueProcessor())
                 .compilesWithoutError()
                 .and()
