@@ -13,6 +13,7 @@ import com.squareup.javapoet.TypeSpec;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -34,6 +35,7 @@ import static com.gabrielittner.auto.value.util.ElementUtil.typeExists;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
+import static javax.tools.Diagnostic.Kind.ERROR;
 
 @AutoService(AutoValueExtension.class)
 public class AutoValueCursorExtension extends AutoValueExtension {
@@ -80,7 +82,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         ExecutableElement method = getMethod(context.autoValueClass(), true, false, null,
                 CONTENT_VALUES);
         if (method != null) {
-            subclass.addMethod(createToContentValuesMethod(method, properties));
+            subclass.addMethod(createToContentValuesMethod(context.processingEnvironment(),
+                    method, properties));
         }
 
         return JavaFile.builder(context.packageName(), subclass.build())
@@ -108,15 +111,23 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             } else {
                 TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
                 if (factoryTypeMirror != null) {
-                    String methodName = getFactoryMethodName(type,
-                            (TypeElement) typeUtils.asElement(factoryTypeMirror));
-                    TypeName factoryType = TypeName.get(factoryTypeMirror);
+                    TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
+                    ExecutableElement method = getMethod(factoryType, false, true, CURSOR, type);
+                    if (method == null) {
+                        String message = String.format("Class \"%s\" needs to define a public"
+                                + " static method taking a \"Cursor\" and returning \"%s\"",
+                                factoryType, type.toString());
+                        context.processingEnvironment().getMessager().printMessage(ERROR, message);
+                        continue;
+                    }
                     readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
-                            factoryType, methodName);
+                            TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
                 } else {
                     if (!hasAnnotationWithName(element, NULLABLE)) {
-                        throw new IllegalArgumentException(String.format("Property \"%s\" has type "
-                                + "\"%s\" that can't be read from Cursor.", name, type));
+                        String message = String.format("Property \"%s\" has type \"%s\""
+                                + " that can't be read from Cursor.", name, type);
+                        context.processingEnvironment().getMessager().printMessage(ERROR, message);
+                        continue;
                     }
                     readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
                 }
@@ -171,16 +182,6 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return annotationValue == null ? null : (TypeMirror) annotationValue.getValue();
     }
 
-    private String getFactoryMethodName(TypeName returnType, TypeElement factoryClass) {
-        ExecutableElement method = getMethod(factoryClass, false, true, CURSOR, returnType);
-        if (method != null) {
-            return method.getSimpleName().toString();
-        }
-        throw new IllegalArgumentException(String.format("Class \"%s\" needs to define a "
-                        + "public static method taking a \"Cursor\" and returning \"%s\"",
-                factoryClass.getSimpleName(), returnType.toString()));
-    }
-
     private FieldSpec createMapper(Context context) {
         TypeName func1Name = getFunc1TypeName(context);
         TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
@@ -202,8 +203,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
     }
 
-    private MethodSpec createToContentValuesMethod(ExecutableElement method,
-            Map<String, ExecutableElement> properties) {
+    private MethodSpec createToContentValuesMethod(ProcessingEnvironment environment,
+            ExecutableElement method, Map<String, ExecutableElement> properties) {
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.getSimpleName().toString())
                 .addModifiers(PUBLIC)
                 .returns(CONTENT_VALUES)
@@ -214,8 +215,10 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             TypeName type = TypeName.get(element.getReturnType());
 
             if (getCursorMethod(type) == null) {
-                throw new IllegalArgumentException(String.format("Property \"%s\" has type "
-                        + "\"%s\" that can't be put into ContentValues.", name, type));
+                String message = String.format("Property \"%s\" has type \"%s\" that can't be put "
+                        + "into ContentValues.", name, type);
+                environment.getMessager().printMessage(ERROR, message);
+                continue;
             }
 
             String columnName = getColumnName(element);

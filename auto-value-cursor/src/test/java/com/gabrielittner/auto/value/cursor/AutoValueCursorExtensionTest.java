@@ -311,8 +311,8 @@ public class AutoValueCursorExtensionTest {
         assertAbout(javaSources()).that(Arrays.asList(fooClass, fooFactorySource, source))
                 .processedWith(new AutoValueProcessor())
                 .failsToCompile()
-                .withErrorContaining("Class \"FooFactory\" needs to define a public static method "
-                        + "taking a \"Cursor\" and returning \"test.Foo\"");
+                .withErrorContaining("Class \"test.FooFactory\" needs to define a public static"
+                        + " method taking a \"Cursor\" and returning \"test.Foo\"");
     }
 
     @Test public void contentValues() {
@@ -412,7 +412,7 @@ public class AutoValueCursorExtensionTest {
                 .generatesSources(expected);
     }
 
-    @Test public void unsupportedColumnName() {
+    @Test public void unsupportedContentValues() {
         JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
                 + "package test;\n"
                 + "import com.google.auto.value.AutoValue;\n"
