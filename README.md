@@ -97,9 +97,9 @@ public class Avatar {
 Add a Gradle dependency:
 
 ```groovy
-apt 'com.gabrielittner.auto.value:auto-value-cursor:0.2.0'
+apt 'com.gabrielittner.auto.value:auto-value-cursor:0.3.0'
 // if you need the @ColumnName annotation also include this:
-provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.2.0'
+provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.3.0'
 ```
 (Using the [android-apt][apt] plugin)
 
@@ -109,13 +109,13 @@ or Maven:
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <scope>provided</scope>
 </dependency>
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor-annotations</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <scope>provided</scope>
 </dependency>
 ```
