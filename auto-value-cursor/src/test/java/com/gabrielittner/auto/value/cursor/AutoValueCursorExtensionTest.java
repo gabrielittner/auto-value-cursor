@@ -527,12 +527,6 @@ public class AutoValueCursorExtensionTest {
     }
 
     @Test public void rxjava() {
-        JavaFileObject func1 = JavaFileObjects.forSourceString("rx.functions.Func1", ""
-                + "package rx.functions;\n"
-                + "public interface Func1<T, R> {\n"
-                + "  R call(T t);\n"
-                + "}"
-        );
         JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
                 + "package test;\n"
                 + "import com.google.auto.value.AutoValue;\n"
@@ -572,10 +566,69 @@ public class AutoValueCursorExtensionTest {
                 + "}"
         );
 
-        assertAbout(javaSources()).that(Arrays.asList(func1, source))
+        assertAbout(javaSources()).that(Arrays.asList(func1(), source))
                 .processedWith(new AutoValueProcessor())
                 .compilesWithoutError()
                 .and()
                 .generatesSources(expected);
+    }
+
+
+
+    @Test public void rxjavaOptIn() {
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import android.database.Cursor;\n"
+                + "import rx.functions.Func1;\n"
+                + "@AutoValue public abstract class Test {\n"
+                + "  public static Func1<Cursor, Test> blahMap() { return null; }\n"
+                + "  public abstract int a();\n"
+                + "  public abstract String b();\n"
+                + "}\n"
+        );
+
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.database.Cursor;\n"
+                + "import java.lang.Override;\n"
+                + "import java.lang.String;\n"
+                + "import rx.functions.Func1;\n"
+                + "\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  static final Func1<Cursor, Test> MAPPER = new Func1<Cursor, Test>() {\n"
+                + "    @Override\n"
+                + "    public AutoValue_Test call(Cursor c) {\n"
+                + "      return createFromCursor(c);\n"
+                + "    }\n"
+                + "  };\n"
+                + "\n"
+                + "  AutoValue_Test(int a, String b) {\n"
+                + "    super(a, b);\n"
+                + "  }\n"
+                + "\n"
+                + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
+                + "    int a = cursor.getInt(cursor.getColumnIndexOrThrow(\"a\"));\n"
+                + "    String b = cursor.getString(cursor.getColumnIndexOrThrow(\"b\"));\n"
+                + "    return new AutoValue_Test(a, b);\n"
+                + "  }\n"
+                + "}"
+        );
+
+        assertAbout(javaSources()).that(Arrays.asList(func1(), source))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
+
+    private JavaFileObject func1() {
+        return JavaFileObjects.forSourceString("rx.functions.Func1", ""
+                + "package rx.functions;\n"
+                + "public interface Func1<T, R> {\n"
+                + "  R call(T t);\n"
+                + "}"
+        );
     }
 }

@@ -54,7 +54,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     public boolean applicable(Context context) {
         TypeElement valueClass = context.autoValueClass();
         return hasMethod(valueClass, false, true, CURSOR, ClassName.get(valueClass.asType()))
-                || hasMethod(valueClass, false, true, CURSOR, getFunc1TypeName(context))
+                || hasMethod(valueClass, false, true, null, getFunc1TypeName(context))
                 || hasMethod(valueClass, true, false, null, CONTENT_VALUES);
     }
 
