@@ -58,7 +58,7 @@ custom type. Eg.:
 @AutoValue public abstract class User {
   abstract String id();
   abstract String name();
-  @AutoValueCursorFactory(AvatarFactory.class) Avatar avatar();
+  @CursorAdapter(AvatarFactory.class) Avatar avatar();
 
   public static User createFromCursor(Cursor cursor) {
     return AutoValue_User.createFromCursor(cursor);
@@ -98,7 +98,7 @@ Add a Gradle dependency:
 
 ```groovy
 apt 'com.gabrielittner.auto.value:auto-value-cursor:0.3.1'
-// if you need the @ColumnName annotation also include this:
+// if you need the @ColumnName or @CursorAdapter annotations also include this:
 provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.3.1'
 ```
 (Using the [android-apt][apt] plugin)

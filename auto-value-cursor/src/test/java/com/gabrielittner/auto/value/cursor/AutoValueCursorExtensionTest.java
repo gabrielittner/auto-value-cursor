@@ -431,7 +431,7 @@ public class AutoValueCursorExtensionTest {
                 .that(Collections.singletonList(source))
                 .processedWith(new AutoValueProcessor())
                 .failsToCompile()
-                .withErrorContaining("Property \"a\" has type \"int[]\" that can't be put"
+                .withErrorContaining("Prddoperty \"a\" has type \"int[]\" that can't be put"
                         + " into ContentValues.");
     }
 

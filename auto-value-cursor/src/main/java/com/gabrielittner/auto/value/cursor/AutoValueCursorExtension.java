@@ -13,7 +13,6 @@ import com.squareup.javapoet.TypeSpec;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -82,8 +81,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         ExecutableElement method = getMethod(context.autoValueClass(), true, false, null,
                 CONTENT_VALUES);
         if (method != null) {
-            subclass.addMethod(createToContentValuesMethod(context.processingEnvironment(),
-                    method, properties));
+            subclass.addMethod(createToContentValuesMethod(context, method, properties));
         }
 
         return JavaFile.builder(context.packageName(), subclass.build())
@@ -117,7 +115,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                         String message = String.format("Class \"%s\" needs to define a public"
                                 + " static method taking a \"Cursor\" and returning \"%s\"",
                                 factoryType, type.toString());
-                        context.processingEnvironment().getMessager().printMessage(ERROR, message);
+                        context.processingEnvironment().getMessager()
+                                .printMessage(ERROR, message, context.autoValueClass());
                         continue;
                     }
                     readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
@@ -126,7 +125,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                     if (!hasAnnotationWithName(element, NULLABLE)) {
                         String message = String.format("Property \"%s\" has type \"%s\""
                                 + " that can't be read from Cursor.", name, type);
-                        context.processingEnvironment().getMessager().printMessage(ERROR, message);
+                        context.processingEnvironment().getMessager()
+                                .printMessage(ERROR, message, context.autoValueClass());
                         continue;
                     }
                     readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
@@ -203,7 +203,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
     }
 
-    private MethodSpec createToContentValuesMethod(ProcessingEnvironment environment,
+    private MethodSpec createToContentValuesMethod(Context context,
             ExecutableElement method, Map<String, ExecutableElement> properties) {
         MethodSpec.Builder builder = MethodSpec.methodBuilder(method.getSimpleName().toString())
                 .addModifiers(PUBLIC)
@@ -217,7 +217,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             if (getCursorMethod(type) == null) {
                 String message = String.format("Property \"%s\" has type \"%s\" that can't be put "
                         + "into ContentValues.", name, type);
-                environment.getMessager().printMessage(ERROR, message);
+                context.processingEnvironment().getMessager()
+                        .printMessage(ERROR, message, context.autoValueClass());
                 continue;
             }
 
