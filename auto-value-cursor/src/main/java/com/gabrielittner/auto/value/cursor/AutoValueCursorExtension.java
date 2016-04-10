@@ -10,9 +10,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -155,7 +153,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return columnName != null ? columnName.value() : null;
     }
 
-    private TypeMirror getFactoryTypeMirror(Element element) {
+    private static TypeMirror getFactoryTypeMirror(Element element) {
         AnnotationMirror annotationMirror = getAnnotationMirror(element, CursorAdapter.class);
         if (annotationMirror == null) {
             return null;
