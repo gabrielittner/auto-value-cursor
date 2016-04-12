@@ -268,4 +268,55 @@ public class AutoValueContentValuesExtensionTest {
                 .withErrorContaining("Class \"test.FooFactory\" needs to define a public static"
                         + " method taking \"test.Foo\" and returning \"ContentValues\"");
     }
+
+    @Test public void valuesAdapterForSupportedType() {
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
+                + "import com.gabrielitter.auto.value.contentvalues.ValuesAdapter;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import javax.annotation.Nullable;\n"
+                + "import android.content.ContentValues;\n"
+                + "@AutoValue public abstract class Test {\n"
+                + "  @ValuesAdapter(FooFactory.class) public abstract String foo();\n"
+                + "  public abstract ContentValues toContentValues();"
+                + "}\n"
+        );
+        JavaFileObject fooFactorySource = JavaFileObjects.forSourceString("test.FooFactory", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.content.ContentValues;\n"
+                + "\n"
+                + "public class FooFactory {\n"
+                + "  public static ContentValues createContentValues(String foo) { "
+                + "    return null;\n"
+                + "  }\n"
+                + "}\n"
+        );
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.content.ContentValues;\n"
+                + "import java.lang.String;\n"
+                + "\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  AutoValue_Test(String foo) {\n"
+                + "    super(foo);\n"
+                + "  }\n"
+                + "\n"
+                + "  public ContentValues toContentValues() {\n"
+                + "    ContentValues values = new ContentValues(1);\n"
+                + "    ContentValues fooValues = FooFactory.createContentValues(foo());\n"
+                + "    if (fooValues != null) values.putAll(fooValues);\n"
+                + "    return values;\n"
+                + "  }\n"
+                + "}"
+        );
+
+        assertAbout(javaSources()).that(Arrays.asList(fooFactorySource, source))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
 }

@@ -83,34 +83,34 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             String name = entry.getKey();
             String cursorMethod = getCursorMethod(type);
             String columnName = getColumnName(element);
-            if (cursorMethod != null) {
+
+
+            TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
+            if (factoryTypeMirror != null) {
+                TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
+                ExecutableElement method = getMethod(factoryType, false, true, CURSOR, type);
+                if (method == null) {
+                    String message = String.format("Class \"%s\" needs to define a public"
+                                    + " static method taking a \"Cursor\" and returning \"%s\"",
+                            factoryType, type.toString());
+                    context.processingEnvironment().getMessager()
+                            .printMessage(ERROR, message, context.autoValueClass());
+                    continue;
+                }
+                readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
+                        TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
+            } else if (cursorMethod != null) {
                 readMethod.addStatement(cursorMethod, type, name,
                         columnName != null ? columnName : name);
             } else {
-                TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
-                if (factoryTypeMirror != null) {
-                    TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
-                    ExecutableElement method = getMethod(factoryType, false, true, CURSOR, type);
-                    if (method == null) {
-                        String message = String.format("Class \"%s\" needs to define a public"
-                                + " static method taking a \"Cursor\" and returning \"%s\"",
-                                factoryType, type.toString());
-                        context.processingEnvironment().getMessager()
-                                .printMessage(ERROR, message, context.autoValueClass());
-                        continue;
-                    }
-                    readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
-                            TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
-                } else {
-                    if (!hasAnnotationWithName(element, NULLABLE)) {
+                if (!hasAnnotationWithName(element, NULLABLE)) {
                         String message = String.format("Property \"%s\" has type \"%s\""
                                 + " that can't be read from Cursor.", name, type);
                         context.processingEnvironment().getMessager()
                                 .printMessage(ERROR, message, context.autoValueClass());
-                        continue;
-                    }
-                    readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
+                    continue;
                 }
+                readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
             }
         }
 

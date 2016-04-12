@@ -77,34 +77,32 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
             ExecutableElement element = entry.getValue();
             TypeName type = TypeName.get(element.getReturnType());
 
-            if (getCursorMethod(type) != null) {
+            TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
+            if (factoryTypeMirror != null) {
+                TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
+                ExecutableElement method = getMethod(factoryType, false, true, type,
+                        CONTENT_VALUES);
+                if (method == null) {
+                    String message = String.format("Class \"%s\" needs to define a public"
+                                    + " static method taking \"%s\" and returning \"ContentValues\"",
+                            factoryType, type.toString());
+                    context.processingEnvironment().getMessager()
+                            .printMessage(ERROR, message, context.autoValueClass());
+                    continue;
+                }
+
+                builder.addStatement("$1T $2LValues = $3T.$4N($2L())", CONTENT_VALUES, name,
+                        TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
+                builder.addStatement("if ($1LValues != null) values.putAll($1LValues)", name);
+            } else if (getCursorMethod(type) != null) {
                 String columnName = getColumnName(element);
                 if (columnName == null) columnName = entry.getKey();
                 builder.addStatement("values.put($S, $L())", columnName, name);
             } else {
-                TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
-                if (factoryTypeMirror != null) {
-                    TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
-                    ExecutableElement method = getMethod(factoryType, false, true, type,
-                            CONTENT_VALUES);
-                    if (method == null) {
-                        String message = String.format("Class \"%s\" needs to define a public"
-                                + " static method taking \"%s\" and returning \"ContentValues\"",
-                                factoryType, type.toString());
-                        context.processingEnvironment().getMessager()
-                                .printMessage(ERROR, message, context.autoValueClass());
-                        continue;
-                    }
-
-                    builder.addStatement("$1T $2LValues = $3T.$4N($2L())", CONTENT_VALUES, name,
-                            TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
-                    builder.addStatement("if ($1LValues != null) values.putAll($1LValues)", name);
-                } else {
-                    String message = String.format("Property \"%s\" has type \"%s\" that can't "
-                            + "be put into ContentValues.", name, type);
-                    context.processingEnvironment().getMessager()
-                            .printMessage(ERROR, message, context.autoValueClass());
-                }
+                String message = String.format("Property \"%s\" has type \"%s\" that can't "
+                        + "be put into ContentValues.", name, type);
+                context.processingEnvironment().getMessager()
+                        .printMessage(ERROR, message, context.autoValueClass());
             }
         }
         return builder.addStatement("return values")
