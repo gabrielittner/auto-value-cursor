@@ -92,6 +92,11 @@ public class Avatar {
 }
 ```
 
+If you use the generation of a method that creates `ContentValues` you can use `@ValuesAdapter`
+to support custom types. Like a `@CursorAdapter` it has to contain a public static method that takes
+the custom type and returns `ContentValues`.
+
+
 ## Download
 
 Add a Gradle dependency:
