@@ -500,4 +500,53 @@ public class AutoValueCursorExtensionTest {
                 .and()
                 .generatesSources(expected);
     }
+
+    @Test public void cursorAdapterForSupportedType() {
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
+                + "import com.gabrielittner.auto.value.cursor.CursorAdapter;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import javax.annotation.Nullable;\n"
+                + "import android.database.Cursor;\n"
+                + "@AutoValue public abstract class Test {\n"
+                + "  public static Test blah(Cursor cursor) { return null; }\n"
+                + "  @CursorAdapter(FooFactory.class) public abstract String foo();\n"
+                + "}\n"
+        );
+        JavaFileObject fooFactorySource = JavaFileObjects.forSourceString("test.FooFactory", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.database.Cursor;\n"
+                + "\n"
+                + "public class FooFactory {\n"
+                + "  public static String createFromCursor(Cursor cursor) { "
+                + "    return \"\";\n"
+                + "  }\n"
+                + "}\n"
+        );
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.database.Cursor;\n"
+                + "import java.lang.String;\n"
+                + "\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  AutoValue_Test(String foo) {\n"
+                + "    super(foo);\n"
+                + "  }\n"
+                + "\n"
+                + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
+                + "    String foo = FooFactory.createFromCursor(cursor);\n"
+                + "    return new AutoValue_Test(foo);\n"
+                + "  }\n"
+                + "}"
+        );
+
+        assertAbout(javaSources()).that(Arrays.asList(fooFactorySource, source))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
 }
