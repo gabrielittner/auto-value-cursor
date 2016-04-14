@@ -133,5 +133,6 @@ public interface Cursor extends Closeable {
      * @return the value of that column as a double.
      */
     double getDouble(int columnIndex);
-    
+
+    boolean isNull (int columnIndex);
 }

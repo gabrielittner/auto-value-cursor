@@ -66,7 +66,7 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
     private MethodSpec createToContentValuesMethod(AutoValueExtension.Context context,
             ExecutableElement methodToImplement, Map<String, ExecutableElement> properties) {
         String methodName = methodToImplement.getSimpleName().toString();
-        MethodSpec.Builder builder = MethodSpec.methodBuilder(methodName)
+        MethodSpec.Builder writeMethod = MethodSpec.methodBuilder(methodName)
                 .addModifiers(PUBLIC)
                 .returns(CONTENT_VALUES)
                 .addStatement("$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
@@ -91,13 +91,13 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
                     continue;
                 }
 
-                builder.addStatement("$1T $2LValues = $3T.$4N($2L())", CONTENT_VALUES, name,
+                writeMethod.addStatement("$1T $2LValues = $3T.$4N($2L())", CONTENT_VALUES, name,
                         TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
-                builder.addStatement("if ($1LValues != null) values.putAll($1LValues)", name);
+                writeMethod.addStatement("if ($1LValues != null) values.putAll($1LValues)", name);
             } else if (getCursorMethod(type) != null) {
                 String columnName = getColumnName(element);
-                if (columnName == null) columnName = entry.getKey();
-                builder.addStatement("values.put($S, $L())", columnName, name);
+                columnName = columnName != null ? columnName : name;
+                writeMethod.addStatement("values.put($S, $L())", columnName, name);
             } else {
                 String message = String.format("Property \"%s\" has type \"%s\" that can't "
                         + "be put into ContentValues.", name, type);
@@ -105,7 +105,7 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
                         .printMessage(ERROR, message, context.autoValueClass());
             }
         }
-        return builder.addStatement("return values")
+        return writeMethod.addStatement("return values")
                 .build();
     }
 
