@@ -82,9 +82,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             TypeName type = TypeName.get(element.getReturnType());
             String name = entry.getKey();
             String cursorMethod = getCursorMethod(type);
-            String columnName = getColumnName(element);
-
-
+            boolean isNullable = hasAnnotationWithName(element, NULLABLE);
             TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
             if (factoryTypeMirror != null) {
                 TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
@@ -100,17 +98,30 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
                         TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
             } else if (cursorMethod != null) {
-                readMethod.addStatement(cursorMethod, type, name,
-                        columnName != null ? columnName : name);
+                String columnName = getColumnName(element);
+                columnName = columnName != null ? columnName : name;
+                CodeBlock getColumnIndex = CodeBlock.of("cursor.getColumnIndexOrThrow($S)", columnName);
+                CodeBlock getValue;
+                if (isNullable) {
+                    String columnIndexVar = name + "ColumnIndex";
+                    readMethod.addStatement("int $L = $L", columnIndexVar, getColumnIndex);
+                    getValue = CodeBlock.builder()
+                            .add("cursor.isNull($L) ? null : ", columnIndexVar)
+                            .add(cursorMethod, columnIndexVar)
+                            .build();
+                } else {
+                    getValue = CodeBlock.of(cursorMethod, getColumnIndex);
+                }
+                readMethod.addStatement("$T $N = $L", type, name, getValue);
             } else {
-                if (!hasAnnotationWithName(element, NULLABLE)) {
+                if (isNullable) {
+                    readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
+                } else {
                         String message = String.format("Property \"%s\" has type \"%s\""
                                 + " that can't be read from Cursor.", name, type);
                         context.processingEnvironment().getMessager()
                                 .printMessage(ERROR, message, context.autoValueClass());
-                    continue;
                 }
-                readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
             }
         }
 
@@ -122,28 +133,28 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     public static String getCursorMethod(TypeName type) {
         if (type.equals(TypeName.get(byte[].class)) || type.equals(
                 TypeName.get(Byte[].class))) {
-            return "$T $N = cursor.getBlob(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getBlob($L)";
         }
         if (type.equals(TypeName.DOUBLE) || type.equals(TypeName.DOUBLE.box())) {
-            return "$T $N = cursor.getDouble(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getDouble($L)";
         }
         if (type.equals(TypeName.FLOAT) || type.equals(TypeName.FLOAT.box())) {
-            return "$T $N = cursor.getFloat(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getFloat($L)";
         }
         if (type.equals(TypeName.INT) || type.equals(TypeName.INT.box())) {
-            return "$T $N = cursor.getInt(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getInt($L)";
         }
         if (type.equals(TypeName.LONG) || type.equals(TypeName.LONG.box())) {
-            return "$T $N = cursor.getLong(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getLong($L)";
         }
         if (type.equals(TypeName.SHORT) || type.equals(TypeName.SHORT.box())) {
-            return "$T $N = cursor.getShort(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getShort($L)";
         }
         if (type.equals(TypeName.get(String.class))) {
-            return "$T $N = cursor.getString(cursor.getColumnIndexOrThrow($S))";
+            return "cursor.getString($L)";
         }
         if (type.equals(TypeName.BOOLEAN) || type.equals(TypeName.BOOLEAN.box())) {
-            return "$T $N = cursor.getInt(cursor.getColumnIndexOrThrow($S)) == 1";
+            return "cursor.getInt($L) == 1";
         }
         return null;
     }
