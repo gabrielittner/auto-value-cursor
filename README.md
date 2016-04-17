@@ -102,9 +102,9 @@ the custom type and returns `ContentValues`.
 Add a Gradle dependency:
 
 ```groovy
-apt 'com.gabrielittner.auto.value:auto-value-cursor:0.3.1'
+apt 'com.gabrielittner.auto.value:auto-value-cursor:0.4.0'
 // if you need the @ColumnName or @CursorAdapter annotations also include this:
-provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.3.1'
+provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.4.0'
 ```
 (Using the [android-apt][apt] plugin)
 
@@ -114,13 +114,13 @@ or Maven:
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor</artifactId>
-  <version>0.3.1</version>
+  <version>0.4.0</version>
   <scope>provided</scope>
 </dependency>
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor-annotations</artifactId>
-  <version>0.3.1</version>
+  <version>0.4.0</version>
   <scope>provided</scope>
 </dependency>
 ```

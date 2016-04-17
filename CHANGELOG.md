@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+Version 0.4.0 *(2016-04-17)*
+----------------------------
+
+#### Supports: AutoValue 1.2
+
+- added `@ValuesAdapter` to support custom type mapping for `ContentValues`
+- when a column is `null` and the property is annotated with `@Nullable` set the property to null instead of using the cursor's default value
+
 Version 0.3.1 *(2016-04-03)*
 ----------------------------
 
