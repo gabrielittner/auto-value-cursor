@@ -1,7 +1,9 @@
 package com.gabrielittner.auto.value.cursor;
 
+import com.gabrielittner.auto.value.ColumnProperty;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
+import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
@@ -10,24 +12,17 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import java.util.Map;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 
-import static com.gabrielittner.auto.value.util.AnnotationUtil.getAnnotationMirror;
-import static com.gabrielittner.auto.value.util.AnnotationUtil.getAnnotationValue;
-import static com.gabrielittner.auto.value.util.AnnotationUtil.hasAnnotationWithName;
-import static com.gabrielittner.auto.value.util.AutoValueUtil.generateFinalClassConstructorCall;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getAutoValueClassClassName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getFinalClassClassName;
-import static com.gabrielittner.auto.value.util.AutoValueUtil.typeSpecBuilder;
-import static com.gabrielittner.auto.value.util.ElementUtil.getMethod;
-import static com.gabrielittner.auto.value.util.ElementUtil.hasMethod;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.newFinalClassConstructorCall;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
+import static com.gabrielittner.auto.value.util.ElementUtil.getStaticMethod;
+import static com.gabrielittner.auto.value.util.ElementUtil.hasStaticMethod;
 import static com.gabrielittner.auto.value.util.ElementUtil.typeExists;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PUBLIC;
@@ -39,7 +34,6 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
     private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
-    private static final String NULLABLE = "Nullable";
 
     private static final String METHOD_NAME = "createFromCursor";
     private static final String FUNC1_FIELD_NAME = "MAPPER";
@@ -48,16 +42,16 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     @Override
     public boolean applicable(Context context) {
         TypeElement valueClass = context.autoValueClass();
-        return hasMethod(valueClass, false, true, CURSOR, ClassName.get(valueClass.asType()))
-                || hasMethod(valueClass, false, true, null, getFunc1TypeName(context));
+        return hasStaticMethod(valueClass, CURSOR, ClassName.get(valueClass.asType()))
+                || hasStaticMethod(valueClass, null, getFunc1TypeName(context));
     }
 
     @Override
     public String generateClass(Context context, String className, String classToExtend,
             boolean isFinal) {
-        Map<String, ExecutableElement> properties = context.properties();
+        ImmutableList<ColumnProperty> properties = ColumnProperty.from(context);
 
-        TypeSpec.Builder subclass = typeSpecBuilder(context, className, classToExtend, isFinal)
+        TypeSpec.Builder subclass = newTypeSpecBuilder(context, className, classToExtend, isFinal)
                 .addMethod(createReadMethod(context, properties));
 
         if (typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
@@ -70,40 +64,40 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     }
 
     private MethodSpec createReadMethod(Context context,
-            Map<String, ExecutableElement> properties) {
+            ImmutableList<ColumnProperty> properties) {
         MethodSpec.Builder readMethod = MethodSpec.methodBuilder(METHOD_NAME)
                 .addModifiers(STATIC)
                 .returns(getFinalClassClassName(context))
                 .addParameter(CURSOR, "cursor");
 
         Types typeUtils = context.processingEnvironment().getTypeUtils();
-        for (Map.Entry<String, ExecutableElement> entry : properties.entrySet()) {
-            ExecutableElement element = entry.getValue();
-            TypeName type = TypeName.get(element.getReturnType());
-            String name = entry.getKey();
-            String cursorMethod = getCursorMethod(type);
-            boolean isNullable = hasAnnotationWithName(element, NULLABLE);
-            TypeMirror factoryTypeMirror = getFactoryTypeMirror(element);
+        String[] names = new String[properties.size()];
+        for (int i = 0; i < properties.size(); i++) {
+            ColumnProperty property = properties.get(i);
+            names[i] = property.humanName();
+
+            String cursorMethod = getCursorMethod(property.type());
+            TypeMirror factoryTypeMirror = property.cursorAdapter();
             if (factoryTypeMirror != null) {
                 TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
-                ExecutableElement method = getMethod(factoryType, false, true, CURSOR, type);
+                ExecutableElement method = getStaticMethod(factoryType, CURSOR, property.type());
                 if (method == null) {
                     String message = String.format("Class \"%s\" needs to define a public"
                                     + " static method taking a \"Cursor\" and returning \"%s\"",
-                            factoryType, type.toString());
+                            factoryType, property.type().toString());
                     context.processingEnvironment().getMessager()
                             .printMessage(ERROR, message, context.autoValueClass());
                     continue;
                 }
-                readMethod.addStatement("$T $N = $T.$N(cursor)", type, name,
-                        TypeName.get(factoryTypeMirror), method.getSimpleName().toString());
+                readMethod.addStatement("$T $N = $T.$N(cursor)", property.type(),
+                        property.humanName(), TypeName.get(factoryTypeMirror),
+                        method.getSimpleName().toString());
             } else if (cursorMethod != null) {
-                String columnName = getColumnName(element);
-                columnName = columnName != null ? columnName : name;
-                CodeBlock getColumnIndex = CodeBlock.of("cursor.getColumnIndexOrThrow($S)", columnName);
+                CodeBlock getColumnIndex =
+                        CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
                 CodeBlock getValue;
-                if (isNullable) {
-                    String columnIndexVar = name + "ColumnIndex";
+                if (property.nullable()) {
+                    String columnIndexVar = property.humanName() + "ColumnIndex";
                     readMethod.addStatement("int $L = $L", columnIndexVar, getColumnIndex);
                     getValue = CodeBlock.builder()
                             .add("cursor.isNull($L) ? null : ", columnIndexVar)
@@ -112,21 +106,22 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 } else {
                     getValue = CodeBlock.of(cursorMethod, getColumnIndex);
                 }
-                readMethod.addStatement("$T $N = $L", type, name, getValue);
+                readMethod.addStatement("$T $N = $L", property.type(), property.humanName(),
+                        getValue);
             } else {
-                if (isNullable) {
-                    readMethod.addCode("$T $N = null; // can't be read from cursor\n", type, name);
+                if (property.nullable()) {
+                    readMethod.addCode("$T $N = null; // can't be read from cursor\n",
+                            property.type(), property.humanName());
                 } else {
-                        String message = String.format("Property \"%s\" has type \"%s\""
-                                + " that can't be read from Cursor.", name, type);
-                        context.processingEnvironment().getMessager()
-                                .printMessage(ERROR, message, context.autoValueClass());
+                    String message = String.format("ColumnProperty \"%s\" has type \"%s\" that can't "
+                            + "be read from Cursor.", property.humanName(), property.type());
+                    context.processingEnvironment().getMessager()
+                            .printMessage(ERROR, message, context.autoValueClass());
                 }
             }
         }
 
-        Object[] propertyNames = properties.keySet().toArray();
-        CodeBlock returnCall = generateFinalClassConstructorCall(context, propertyNames);
+        CodeBlock returnCall = newFinalClassConstructorCall(context, names);
         return readMethod.addCode("return ").addCode(returnCall).build();
     }
 
@@ -157,20 +152,6 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             return "cursor.getInt($L) == 1";
         }
         return null;
-    }
-
-    public static String getColumnName(ExecutableElement element) {
-        ColumnName columnName = element.getAnnotation(ColumnName.class);
-        return columnName != null ? columnName.value() : null;
-    }
-
-    private static TypeMirror getFactoryTypeMirror(Element element) {
-        AnnotationMirror annotationMirror = getAnnotationMirror(element, CursorAdapter.class);
-        if (annotationMirror == null) {
-            return null;
-        }
-        AnnotationValue annotationValue = getAnnotationValue(annotationMirror, "value");
-        return annotationValue == null ? null : (TypeMirror) annotationValue.getValue();
     }
 
     private FieldSpec createMapper(Context context) {

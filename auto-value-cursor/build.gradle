@@ -10,6 +10,8 @@ dependencies {
     compile deps.javapoet
     compile deps.auto_value
     compile deps.auto_service
+    compile deps.auto_common
+    compile deps.auto_ext_util
 
     testCompile deps.junit
     testCompile deps.truth
