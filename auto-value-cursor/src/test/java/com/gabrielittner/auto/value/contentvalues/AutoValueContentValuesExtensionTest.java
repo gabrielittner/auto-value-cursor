@@ -363,4 +363,43 @@ public class AutoValueContentValuesExtensionTest {
                 .and()
                 .generatesSources(expected);
     }
+
+    @Test public void prefixedMethods() {
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import android.content.ContentValues;\n"
+                + "@AutoValue public abstract class Test {\n"
+                + "  public abstract int getA();\n"
+                + "  public abstract String getB();\n"
+                + "  public abstract ContentValues getContentValues();\n"
+                + "}\n"
+        );
+
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.content.ContentValues;\n"
+                + "import java.lang.String;\n"
+                + "\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  AutoValue_Test(int a, String b) {\n"
+                + "    super(a, b);\n"
+                + "  }\n"
+                + "\n"
+                + "  public ContentValues getContentValues() {\n"
+                + "    ContentValues values = new ContentValues(2);\n"
+                + "    values.put(\"a\", getA());\n"
+                + "    values.put(\"b\", getB());\n"
+                + "    return values;\n"
+                + "  }\n"
+                + "}"
+        );
+
+        assertAbout(javaSources()).that(Collections.singletonList(source))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
 }
