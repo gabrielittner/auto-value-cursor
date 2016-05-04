@@ -319,4 +319,48 @@ public class AutoValueContentValuesExtensionTest {
                 .and()
                 .generatesSources(expected);
     }
+
+    @Test public void baseClass() {
+        JavaFileObject source = JavaFileObjects.forSourceString("test.BaseTest", ""
+                + "package test;\n"
+                + "import android.content.ContentValues;\n"
+                + "public abstract class BaseTest {\n"
+                + "  public abstract ContentValues toContentValues();\n"
+                + "}\n"
+        );
+        JavaFileObject source2 = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "@AutoValue public abstract class Test extends BaseTest {\n"
+                + "  public abstract int a();\n"
+                + "  public abstract String b();\n"
+                + "}\n"
+        );
+
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "\n"
+                + "import android.content.ContentValues;\n"
+                + "import java.lang.String;\n"
+                + "\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  AutoValue_Test(int a, String b) {\n"
+                + "    super(a, b);\n"
+                + "  }\n"
+                + "\n"
+                + "  public ContentValues toContentValues() {\n"
+                + "    ContentValues values = new ContentValues(2);\n"
+                + "    values.put(\"a\", a());\n"
+                + "    values.put(\"b\", b());\n"
+                + "    return values;\n"
+                + "  }\n"
+                + "}"
+        );
+
+        assertAbout(javaSources()).that(Arrays.asList(source, source2))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
 }
