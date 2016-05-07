@@ -1,9 +1,11 @@
 package com.gabrielittner.auto.value.contentvalues;
 
 import com.gabrielittner.auto.value.ColumnProperty;
+import com.gabrielittner.auto.value.util.Property;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -43,7 +45,13 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
         Elements elements = context.processingEnvironment().getElementUtils();
         TypeElement valueClass = context.autoValueClass();
         ExecutableElement method = getAbstractMethod(elements, valueClass, null, CONTENT_VALUES);
-        return Collections.singleton(method.getSimpleName().toString());
+        String methodName = method.getSimpleName().toString();
+        for (Property property :  ColumnProperty.from(context)) {
+            if (property.methodName().equals(methodName)) {
+                return ImmutableSet.of(methodName, property.humanName());
+            }
+        }
+        return Collections.singleton(methodName);
     }
 
     @Override
