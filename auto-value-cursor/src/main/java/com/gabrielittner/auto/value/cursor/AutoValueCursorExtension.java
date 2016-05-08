@@ -1,6 +1,9 @@
 package com.gabrielittner.auto.value.cursor;
 
 import com.gabrielittner.auto.value.ColumnProperty;
+import com.gabrielittner.auto.value.util.ElementUtil;
+import com.gabrielittner.auto.value.util.Property;
+import com.google.auto.common.MoreElements;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
@@ -12,6 +15,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
@@ -63,8 +67,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .toString();
     }
 
-    private MethodSpec createReadMethod(Context context,
-            ImmutableList<ColumnProperty> properties) {
+    private MethodSpec createReadMethod(Context context, ImmutableList<ColumnProperty> properties) {
         MethodSpec.Builder readMethod = MethodSpec.methodBuilder(METHOD_NAME)
                 .addModifiers(STATIC)
                 .returns(getFinalClassClassName(context))
@@ -76,81 +79,65 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             ColumnProperty property = properties.get(i);
             names[i] = property.humanName();
 
-            String cursorMethod = getCursorMethod(property.type());
-            TypeMirror factoryTypeMirror = property.cursorAdapter();
-            if (factoryTypeMirror != null) {
-                TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
-                ExecutableElement method = getStaticMethod(factoryType, CURSOR, property.type());
-                if (method == null) {
-                    String message = String.format("Class \"%s\" needs to define a public"
-                                    + " static method taking a \"Cursor\" and returning \"%s\"",
-                            factoryType, property.type().toString());
-                    context.processingEnvironment().getMessager()
-                            .printMessage(ERROR, message, context.autoValueClass());
-                    continue;
+            TypeMirror factory = property.cursorAdapter();
+            if (factory != null) {
+                CodeBlock readProperty = readProperty(property, factory, typeUtils, context);
+                if (readProperty != null) {
+                    readMethod.addCode(readProperty);
                 }
-                readMethod.addStatement("$T $N = $T.$N(cursor)", property.type(),
-                        property.humanName(), TypeName.get(factoryTypeMirror),
-                        method.getSimpleName().toString());
-            } else if (cursorMethod != null) {
-                CodeBlock getColumnIndex =
-                        CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
-                CodeBlock getValue;
+            } else if (property.supportedType()) {
                 if (property.nullable()) {
-                    String columnIndexVar = property.humanName() + "ColumnIndex";
-                    readMethod.addStatement("int $L = $L", columnIndexVar, getColumnIndex);
-                    getValue = CodeBlock.builder()
-                            .add("cursor.isNull($L) ? null : ", columnIndexVar)
-                            .add(cursorMethod, columnIndexVar)
-                            .build();
+                    readMethod.addCode(readNullableProperty(property));
                 } else {
-                    getValue = CodeBlock.of(cursorMethod, getColumnIndex);
+                    readMethod.addCode(readProperty(property));
                 }
-                readMethod.addStatement("$T $N = $L", property.type(), property.humanName(),
-                        getValue);
+            } else if (property.nullable()) {
+                readMethod.addCode("$T $N = null; // can't be read from cursor\n", property.type(),
+                        property.humanName());
             } else {
-                if (property.nullable()) {
-                    readMethod.addCode("$T $N = null; // can't be read from cursor\n",
-                            property.type(), property.humanName());
-                } else {
-                    String message = String.format("ColumnProperty \"%s\" has type \"%s\" that can't "
-                            + "be read from Cursor.", property.humanName(), property.type());
-                    context.processingEnvironment().getMessager()
-                            .printMessage(ERROR, message, context.autoValueClass());
-                }
+                error(context, property, "Property has type that can't be read from Cursor.");
             }
         }
-
-        CodeBlock returnCall = newFinalClassConstructorCall(context, names);
-        return readMethod.addCode("return ").addCode(returnCall).build();
+        return readMethod.addCode("return ")
+                .addCode(newFinalClassConstructorCall(context, names))
+                .build();
     }
 
-    public static String getCursorMethod(TypeName type) {
-        if (type.equals(TypeName.get(byte[].class)) || type.equals(
-                TypeName.get(Byte[].class))) {
-            return "cursor.getBlob($L)";
+    private CodeBlock readProperty(ColumnProperty property) {
+        CodeBlock getValue = CodeBlock.of(property.cursorMethod(), getColumnIndex(property));
+        return CodeBlock.builder()
+                .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
+                .build();
+    }
+
+    private CodeBlock readNullableProperty(ColumnProperty property) {
+        String columnIndexVar = property.humanName() + "ColumnIndex";
+        CodeBlock getValue = CodeBlock.builder()
+                .add("cursor.isNull($L) ? null : ", columnIndexVar)
+                .add(property.cursorMethod(), columnIndexVar)
+                .build();
+        return CodeBlock.builder()
+                .addStatement("int $L = $L", columnIndexVar, getColumnIndex(property))
+                .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
+                .build();
+    }
+
+    private CodeBlock getColumnIndex(ColumnProperty property) {
+        return CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
+    }
+
+    private CodeBlock readProperty(ColumnProperty property, TypeMirror factory, Types typeUtils,
+            Context context) {
+        TypeElement factoryType = (TypeElement) typeUtils.asElement(factory);
+        ExecutableElement method = getStaticMethod(factoryType, CURSOR, property.type());
+        if (method != null) {
+            return CodeBlock.builder()
+                    .addStatement("$T $N = $T.$N(cursor)", property.type(), property.humanName(),
+                            TypeName.get(factory), method.getSimpleName())
+                    .build();
         }
-        if (type.equals(TypeName.DOUBLE) || type.equals(TypeName.DOUBLE.box())) {
-            return "cursor.getDouble($L)";
-        }
-        if (type.equals(TypeName.FLOAT) || type.equals(TypeName.FLOAT.box())) {
-            return "cursor.getFloat($L)";
-        }
-        if (type.equals(TypeName.INT) || type.equals(TypeName.INT.box())) {
-            return "cursor.getInt($L)";
-        }
-        if (type.equals(TypeName.LONG) || type.equals(TypeName.LONG.box())) {
-            return "cursor.getLong($L)";
-        }
-        if (type.equals(TypeName.SHORT) || type.equals(TypeName.SHORT.box())) {
-            return "cursor.getShort($L)";
-        }
-        if (type.equals(TypeName.get(String.class))) {
-            return "cursor.getString($L)";
-        }
-        if (type.equals(TypeName.BOOLEAN) || type.equals(TypeName.BOOLEAN.box())) {
-            return "cursor.getInt($L) == 1";
-        }
+        error(context, property, "Class \"%s\" needs to define a public static method taking a"
+                + " \"Cursor\" and returning \"%s\"", factoryType, property.type().toString());
         return null;
     }
 
@@ -173,5 +160,14 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private TypeName getFunc1TypeName(Context context) {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
+    }
+
+    public static void error(Context context, Property property, String message) {
+        context.processingEnvironment().getMessager()
+                .printMessage(ERROR, message, property.element());
+    }
+
+    public static void error(Context context, Property property, String message, Object... args) {
+        error(context, property, String.format(message, args));
     }
 }
