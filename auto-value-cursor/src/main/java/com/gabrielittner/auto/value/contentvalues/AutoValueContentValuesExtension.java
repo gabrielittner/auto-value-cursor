@@ -74,6 +74,7 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
             ExecutableElement methodToImplement, ImmutableList<ColumnProperty> properties) {
         String methodName = methodToImplement.getSimpleName().toString();
         MethodSpec.Builder writeMethod = MethodSpec.methodBuilder(methodName)
+                .addAnnotation(Override.class)
                 .addModifiers(PUBLIC)
                 .returns(CONTENT_VALUES)
                 .addStatement("$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
