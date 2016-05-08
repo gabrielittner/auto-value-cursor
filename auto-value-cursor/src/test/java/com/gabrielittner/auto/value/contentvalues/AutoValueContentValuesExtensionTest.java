@@ -108,8 +108,7 @@ public class AutoValueContentValuesExtensionTest {
                 .that(Collections.singletonList(source))
                 .processedWith(new AutoValueProcessor())
                 .failsToCompile()
-                .withErrorContaining("Property \"a\" has type \"int[]\" that can't be put"
-                        + " into ContentValues.");
+                .withErrorContaining("Property has type that can't be put into ContentValues.");
     }
 
     @Test public void allContentValuesTypes() {
@@ -223,8 +222,8 @@ public class AutoValueContentValuesExtensionTest {
                 + "\n"
                 + "  public ContentValues toContentValues() {\n"
                 + "    ContentValues values = new ContentValues(1);\n"
-                + "    ContentValues fooValues = FooFactory.createContentValues(foo());\n"
-                + "    if (fooValues != null) values.putAll(fooValues);\n"
+                + "    ContentValues foo = FooFactory.createContentValues(foo());\n"
+                + "    if (foo != null) values.putAll(foo);\n"
                 + "    return values;\n"
                 + "  }\n"
                 + "}"
@@ -306,8 +305,8 @@ public class AutoValueContentValuesExtensionTest {
                 + "\n"
                 + "  public ContentValues toContentValues() {\n"
                 + "    ContentValues values = new ContentValues(1);\n"
-                + "    ContentValues fooValues = FooFactory.createContentValues(foo());\n"
-                + "    if (fooValues != null) values.putAll(fooValues);\n"
+                + "    ContentValues foo = FooFactory.createContentValues(foo());\n"
+                + "    if (foo != null) values.putAll(foo);\n"
                 + "    return values;\n"
                 + "  }\n"
                 + "}"

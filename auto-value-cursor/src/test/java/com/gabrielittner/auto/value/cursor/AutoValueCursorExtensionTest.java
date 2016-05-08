@@ -186,8 +186,7 @@ public class AutoValueCursorExtensionTest {
                 .that(Collections.singletonList(source))
                 .processedWith(new AutoValueProcessor())
                 .failsToCompile()
-                .withErrorContaining("Property \"a\" has type \"int[]\" that can't be read"
-                        + " from Cursor.");
+                .withErrorContaining("Property has type that can't be read from Cursor.");
     }
 
     @Test public void unsupportedWithNullable() {

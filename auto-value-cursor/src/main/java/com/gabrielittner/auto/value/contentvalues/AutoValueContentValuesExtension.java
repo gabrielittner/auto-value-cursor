@@ -7,6 +7,7 @@ import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
@@ -19,13 +20,12 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
-import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.getCursorMethod;
+import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.error;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
 import static com.gabrielittner.auto.value.util.ElementUtil.getAbstractMethod;
 import static com.gabrielittner.auto.value.util.ElementUtil.getStaticMethod;
 import static com.gabrielittner.auto.value.util.ElementUtil.hasAbstractMethod;
 import static javax.lang.model.element.Modifier.PUBLIC;
-import static javax.tools.Diagnostic.Kind.ERROR;
 
 @AutoService(AutoValueExtension.class)
 public class AutoValueContentValuesExtension extends AutoValueExtension {
@@ -80,36 +80,36 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
 
         Types typeUtils = context.processingEnvironment().getTypeUtils();
         for (ColumnProperty property : properties) {
-            TypeMirror factoryTypeMirror = property.valuesAdapter();
-            if (factoryTypeMirror != null) {
-                TypeElement factoryType = (TypeElement) typeUtils.asElement(factoryTypeMirror);
-                ExecutableElement method = getStaticMethod(factoryType, property.type(),
-                        CONTENT_VALUES);
-                if (method == null) {
-                    String message = String.format("Class \"%s\" needs to define a public static "
-                            + "method taking \"%s\" and returning \"ContentValues\"",
-                            factoryType, property.type().toString());
-                    context.processingEnvironment().getMessager()
-                            .printMessage(ERROR, message, context.autoValueClass());
-                    continue;
+            TypeMirror factory = property.valuesAdapter();
+            if (factory != null) {
+                CodeBlock writeProperty = writeProperty(property, factory, typeUtils, context);
+                if (writeProperty != null) {
+                    writeMethod.addCode(writeProperty);
                 }
-
-                writeMethod.addStatement("$T $LValues = $T.$N($L())", CONTENT_VALUES,
-                        property.humanName(), TypeName.get(factoryTypeMirror),
-                        method.getSimpleName().toString(), property.methodName());
-                writeMethod.addStatement("if ($1LValues != null) values.putAll($1LValues)",
-                        property.humanName());
-            } else if (getCursorMethod(property.type()) != null) {
+            } else if (property.supportedType()) {
                 writeMethod.addStatement("values.put($S, $L())", property.columnName(),
                         property.methodName());
             } else {
-                String message = String.format("Property \"%s\" has type \"%s\" that can't "
-                        + "be put into ContentValues.", property.humanName(), property.type());
-                context.processingEnvironment().getMessager()
-                        .printMessage(ERROR, message, context.autoValueClass());
+                error(context, property, "Property has type that can't be put into ContentValues.");
             }
         }
         return writeMethod.addStatement("return values")
                 .build();
+    }
+
+    private CodeBlock writeProperty(ColumnProperty property, TypeMirror factory, Types typeUtils,
+            Context context) {
+        TypeElement factoryType = (TypeElement) typeUtils.asElement(factory);
+        ExecutableElement method = getStaticMethod(factoryType, property.type(), CONTENT_VALUES);
+        if (method != null) {
+            return CodeBlock.builder()
+                    .addStatement("$T $L = $T.$N($L())", CONTENT_VALUES, property.humanName(),
+                            TypeName.get(factory), method.getSimpleName(), property.methodName())
+                    .addStatement("if ($1L != null) values.putAll($1L)", property.humanName())
+                    .build();
+        }
+        error(context, property, "Class \"%s\" needs to define a public static method taking \"%s\""
+                + " and returning \"ContentValues\"", factoryType, property.type());
+        return null;
     }
 }
