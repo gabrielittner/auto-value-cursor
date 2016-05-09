@@ -20,7 +20,7 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
     return AutoValue_User.createFromCursor(cursor);
   }
 
-  // if your project includes RxJava the extension will generate a Func1<Cursor, User> for you
+  // Optional: if your project includes RxJava the extension will generate a Func1<Cursor, User>
   public static Func1<Cursor, User> mapper() {
     return AutoValue_User.MAPPER;
   }
@@ -31,10 +31,9 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 }
 ```
 
-**Important:** The extension will only be applied when there is (replace `User` with your own class)
-- a static method that returns `User` and takes a `Cursor` as parameter
-- a static method that returns a `Func1<Cursor, User>`
-- or both mentioned methods
+**Important:** The extension will only be applied when there is
+- a static method that returns your value type (`User` in the example) and takes a `Cursor` as parameter
+- and/or a static method that returns a `Func1<Cursor, YourValueType>` and has no parameters
 
 The following types are supported by default:
 
@@ -47,10 +46,10 @@ The following types are supported by default:
  * `String`
  * `boolean`/`Boolean`
 
-For other types, you need to use the `@CursorAdapter` annotation and specify a factory
-class that will be used to construct the type from the `Cursor` object. By convention, this factory
-class needs to have a public static method that takes the `Cursor` and returns the
-custom type. Eg.:
+For other types, you need to use the `@ColumnAdapter` annotation and specify a factory
+class that implements the `ColumnTypeAdapter` interface.
+When you need to map multiple columns to one custom type you can simply ignore the given
+`columnName`. Eg.:
 
 `User.java`:
 
@@ -58,7 +57,7 @@ custom type. Eg.:
 @AutoValue public abstract class User {
   abstract String id();
   abstract String name();
-  @CursorAdapter(AvatarFactory.class) Avatar avatar();
+  @ColumnAdapter(AvatarAdapter.class) Avatar avatar();
 
   public static User createFromCursor(Cursor cursor) {
     return AutoValue_User.createFromCursor(cursor);
@@ -66,14 +65,19 @@ custom type. Eg.:
 }
 ```
 
-`AvatarFactory.java`:
+`AvatarAdapter.java`:
 
 ```java
-public class AvatarFactory {
-  public static Avatar createFromCursor(Cursor cursor) {
+public class AvatarAdapter implements ColumnTypeAdapter<Avatar> {
+  public Avatar fromCursor(Cursor cursor, String columnName) {
     String smallImageUrl = cursor.getString(cursor.getColumnIndex("small_image_url");
     String largeImageUrl = cursor.getString(cursor.getColumnIndex("large_image_url");
     return new Avatar(smallImageUrl, largeImageUrl);
+  }
+  public void toContentValues(ContentValues values, String columnName, Avatar value) {
+    // leave this empty when you don't use a "toContentValues()" method
+    values.putString("small_image_url", value.smallImageUrl);
+    values.putString"large_image_url", value.largeImageUrl);
   }
 }
 ```
@@ -82,8 +86,8 @@ public class AvatarFactory {
 
 ```java
 public class Avatar {
-  private final String smallImageUrl;
-  private final String largeImageUrl;
+  final String smallImageUrl;
+  final String largeImageUrl;
 
   public Avatar(String smallImageUrl, String largeImageUrl) {
     this.smallImageUrl = smallImageUrl;
@@ -92,19 +96,14 @@ public class Avatar {
 }
 ```
 
-If you use the generation of a method that creates `ContentValues` you can use `@ValuesAdapter`
-to support custom types. Like a `@CursorAdapter` it has to contain a public static method that takes
-the custom type and returns `ContentValues`.
-
-
 ## Download
 
 Add a Gradle dependency:
 
 ```groovy
 apt 'com.gabrielittner.auto.value:auto-value-cursor:0.4.0'
-// if you need the @ColumnName or @CursorAdapter annotations also include this:
-provided 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.4.0'
+// if you need the @ColumnName or @ColumnAdapter annotations also include this:
+compile 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.4.0'
 ```
 (Using the [android-apt][apt] plugin)
 
@@ -117,11 +116,12 @@ or Maven:
   <version>0.4.0</version>
   <scope>provided</scope>
 </dependency>
+<!-- if you need the @ColumnName or @ColumnAdapter annotations also include this: -->
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor-annotations</artifactId>
   <version>0.4.0</version>
-  <scope>provided</scope>
+  <scope>compile</scope>
 </dependency>
 ```
 

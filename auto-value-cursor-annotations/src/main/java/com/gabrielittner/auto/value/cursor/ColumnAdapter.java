@@ -1,4 +1,4 @@
-package com.gabrielitter.auto.value.contentvalues;
+package com.gabrielittner.auto.value.cursor;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
@@ -9,6 +9,6 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 @Retention(SOURCE)
 @Target({METHOD, FIELD})
-public @interface ValuesAdapter {
-    Class<?> value();
+public @interface ColumnAdapter {
+    Class<? extends ColumnTypeAdapter<?>> value();
 }

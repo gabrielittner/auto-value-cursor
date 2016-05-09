@@ -1,15 +1,18 @@
 package com.gabrielittner.auto.value;
 
-import com.gabrielitter.auto.value.contentvalues.ValuesAdapter;
+import com.gabrielittner.auto.value.cursor.ColumnAdapter;
 import com.gabrielittner.auto.value.cursor.ColumnName;
-import com.gabrielittner.auto.value.cursor.CursorAdapter;
+import com.gabrielittner.auto.value.util.ElementUtil;
 import com.gabrielittner.auto.value.util.Property;
+import com.google.auto.common.AnnotationMirrors;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -85,11 +88,7 @@ public final class ColumnProperty extends Property {
                 type));
     }
 
-    public TypeMirror cursorAdapter() {
-        return (TypeMirror) getAnnotationValue(element(), CursorAdapter.class, "value");
-    }
-
-    public TypeMirror valuesAdapter() {
-        return (TypeMirror) getAnnotationValue(element(), ValuesAdapter.class, "value");
+    public TypeMirror columnAdapter() {
+        return (TypeMirror) getAnnotationValue(element(), ColumnAdapter.class, "value");
     }
 }

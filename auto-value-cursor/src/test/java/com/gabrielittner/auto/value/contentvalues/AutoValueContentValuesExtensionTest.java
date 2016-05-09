@@ -187,117 +187,56 @@ public class AutoValueContentValuesExtensionTest {
                 .generatesSources(expected);
     }
 
-    @Test public void customTypes() {
+    @Test public void valuesAdapter() {
         JavaFileObject fooClass = JavaFileObjects.forSourceString("test.Foo", ""
                 + "package test;\n"
                 + "public class Foo {\n"
-                + "}"
-        );
-        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
-                + "package test;\n"
-                + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
-                + "import com.gabrielitter.auto.value.contentvalues.ValuesAdapter;\n"
-                + "import com.google.auto.value.AutoValue;\n"
-                + "import javax.annotation.Nullable;\n"
-                + "import android.content.ContentValues;\n"
-                + "@AutoValue public abstract class Test {\n"
-                + "  @ValuesAdapter(FooFactory.class) public abstract Foo foo();\n"
-                + "  public abstract ContentValues toContentValues();"
-                + "}\n"
-        );
-        JavaFileObject fooFactorySource = JavaFileObjects.forSourceString("test.FooFactory", ""
-                + "package test;\n"
-                + "\n"
-                + "import android.content.ContentValues;\n"
-                + "\n"
-                + "public class FooFactory {\n"
-                + "  public static ContentValues createContentValues(Foo foo) { "
-                + "    return new ContentValues();\n"
-                + "  }\n"
-                + "}\n"
-        );
-        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
-                + "package test;\n"
-                + "\n"
-                + "import android.content.ContentValues;\n"
-                + "import java.lang.Override;\n"
-                + "\n"
-                + "final class AutoValue_Test extends $AutoValue_Test {\n"
-                + "  AutoValue_Test(Foo foo) {\n"
-                + "    super(foo);\n"
-                + "  }\n"
-                + "\n"
-                + "  @Override\n"
-                + "  public ContentValues toContentValues() {\n"
-                + "    ContentValues values = new ContentValues(1);\n"
-                + "    ContentValues foo = FooFactory.createContentValues(foo());\n"
-                + "    if (foo != null) values.putAll(foo);\n"
-                + "    return values;\n"
+                + "  public final String data;"
+                + "  public Foo(String data) {\n"
+                + "    this.data = data;\n"
                 + "  }\n"
                 + "}"
         );
-
-        assertAbout(javaSources()).that(Arrays.asList(fooClass, fooFactorySource, source))
-                .processedWith(new AutoValueProcessor())
-                .compilesWithoutError()
-                .and()
-                .generatesSources(expected);
-    }
-
-    @Test public void unsupportedValuesFactory() {
-        JavaFileObject fooClass = JavaFileObjects.forSourceString("test.Foo", ""
+        JavaFileObject fooFactorySource = JavaFileObjects.forSourceString("test.FooAdapter", ""
                 + "package test;\n"
-                + "public class Foo {\n"
-                + "}"
-        );
-        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
-                + "package test;\n"
-                + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
-                + "import com.gabrielitter.auto.value.contentvalues.ValuesAdapter;\n"
-                + "import com.google.auto.value.AutoValue;\n"
-                + "import javax.annotation.Nullable;\n"
                 + "import android.content.ContentValues;\n"
-                + "@AutoValue public abstract class Test {\n"
-                + "  @ValuesAdapter(FooFactory.class) public abstract Foo foo();\n"
-                + "  public abstract ContentValues toContentValues();"
-                + "}\n"
-        );
-        JavaFileObject fooFactorySource = JavaFileObjects.forSourceString("test.FooFactory", ""
-                + "package test;\n"
-                + "\n"
-                + "public class FooFactory {\n"
-                + "}\n"
-        );
-
-        assertAbout(javaSources()).that(Arrays.asList(fooClass, fooFactorySource, source))
-                .processedWith(new AutoValueProcessor())
-                .failsToCompile()
-                .withErrorContaining("Class \"test.FooFactory\" needs to define a public static"
-                        + " method taking \"test.Foo\" and returning \"ContentValues\"");
-    }
-
-    @Test public void valuesAdapterForSupportedType() {
-        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
-                + "package test;\n"
-                + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
-                + "import com.gabrielitter.auto.value.contentvalues.ValuesAdapter;\n"
-                + "import com.google.auto.value.AutoValue;\n"
-                + "import javax.annotation.Nullable;\n"
-                + "import android.content.ContentValues;\n"
-                + "@AutoValue public abstract class Test {\n"
-                + "  @ValuesAdapter(FooFactory.class) public abstract String foo();\n"
-                + "  public abstract ContentValues toContentValues();"
-                + "}\n"
-        );
-        JavaFileObject fooFactorySource = JavaFileObjects.forSourceString("test.FooFactory", ""
-                + "package test;\n"
-                + "\n"
-                + "import android.content.ContentValues;\n"
-                + "\n"
-                + "public class FooFactory {\n"
-                + "  public static ContentValues createContentValues(String foo) { "
-                + "    return null;\n"
+                + "import android.database.Cursor;\n"
+                + "import com.gabrielittner.auto.value.cursor.ColumnTypeAdapter;\n"
+                + "public class FooAdapter implements ColumnTypeAdapter<Foo> {\n"
+                + "  public Foo fromCursor(Cursor cursor, String columnName) {\n"
+                + "    return new Foo(cursor.getString(cursor.getColumnIndex(columnName)));\n"
                 + "  }\n"
+                + "  public void toContentValues(ContentValues values, String columnName, Foo value) {\n"
+                + "    values.put(columnName, value.data);\n"
+                + "  }\n"
+                + "}\n"
+        );
+        JavaFileObject stringFactorySource = JavaFileObjects.forSourceString("test.StringAdapter", ""
+                + "package test;\n"
+                + "import android.content.ContentValues;\n"
+                + "import android.database.Cursor;\n"
+                + "import com.gabrielittner.auto.value.cursor.ColumnTypeAdapter;\n"
+                + "public class StringAdapter implements ColumnTypeAdapter<String> {\n"
+                + "  public String fromCursor(Cursor cursor, String columnName) {\n"
+                + "    return cursor.getString(cursor.getColumnIndex(columnName));\n"
+                + "  }\n"
+                + "  public void toContentValues(ContentValues values, String columnName, String value) {\n"
+                + "    values.put(columnName, value);\n"
+                + "  }\n"
+                + "}\n"
+        );
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import android.content.ContentValues;\n"
+                + "import com.gabrielittner.auto.value.cursor.ColumnName;\n"
+                + "import com.gabrielittner.auto.value.cursor.ColumnAdapter;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import javax.annotation.Nullable;\n"
+                + "@AutoValue public abstract class Test {\n"
+                + "  public abstract ContentValues toContentValues();\n"
+                + "  @ColumnAdapter(FooAdapter.class) public abstract Foo foo();\n"
+                + "  @ColumnAdapter(StringAdapter.class) public abstract String bar();\n"
+                + "  @ColumnAdapter(StringAdapter.class) @ColumnName(\"column\") public abstract String columnName();\n"
                 + "}\n"
         );
         JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
@@ -308,21 +247,25 @@ public class AutoValueContentValuesExtensionTest {
                 + "import java.lang.String;\n"
                 + "\n"
                 + "final class AutoValue_Test extends $AutoValue_Test {\n"
-                + "  AutoValue_Test(String foo) {\n"
-                + "    super(foo);\n"
+                + "  AutoValue_Test(Foo foo, String bar, String columnName) {\n"
+                + "    super(foo, bar, columnName);\n"
                 + "  }\n"
                 + "\n"
                 + "  @Override\n"
                 + "  public ContentValues toContentValues() {\n"
-                + "    ContentValues values = new ContentValues(1);\n"
-                + "    ContentValues foo = FooFactory.createContentValues(foo());\n"
-                + "    if (foo != null) values.putAll(foo);\n"
+                + "    ContentValues values = new ContentValues(3);\n"
+                + "    FooAdapter fooAdapter = new FooAdapter();\n"
+                + "    StringAdapter stringAdapter = new StringAdapter();\n"
+                + "    fooAdapter.toContentValues(values, \"foo\", foo());\n"
+                + "    stringAdapter.toContentValues(values,  \"bar\", bar());\n"
+                + "    stringAdapter.toContentValues(values, \"column\", columnName());\n"
                 + "    return values;\n"
                 + "  }\n"
                 + "}"
         );
 
-        assertAbout(javaSources()).that(Arrays.asList(fooFactorySource, source))
+        assertAbout(javaSources()).that(Arrays.asList(fooClass, stringFactorySource,
+                fooFactorySource, source))
                 .processedWith(new AutoValueProcessor())
                 .compilesWithoutError()
                 .and()

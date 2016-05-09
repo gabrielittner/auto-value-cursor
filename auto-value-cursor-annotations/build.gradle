@@ -4,6 +4,7 @@ sourceCompatibility = rootProject.ext.javaVersion
 targetCompatibility = rootProject.ext.javaVersion
 
 dependencies {
+    compileOnly deps.android
 }
 
 apply from: rootProject.file('gradle/mvn-push.gradle')
