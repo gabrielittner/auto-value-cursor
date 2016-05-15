@@ -5,12 +5,12 @@ import com.gabrielittner.auto.value.util.Property;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import java.util.Collections;
 import java.util.Set;
@@ -18,12 +18,12 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 
+import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.addColumnAdaptersToMethod;
 import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.error;
+import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.getColumnAdapters;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
 import static com.gabrielittner.auto.value.util.ElementUtil.getAbstractMethod;
-import static com.gabrielittner.auto.value.util.ElementUtil.getStaticMethod;
 import static com.gabrielittner.auto.value.util.ElementUtil.hasAbstractMethod;
 import static javax.lang.model.element.Modifier.PUBLIC;
 
@@ -46,7 +46,7 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
         TypeElement valueClass = context.autoValueClass();
         ExecutableElement method = getAbstractMethod(elements, valueClass, null, CONTENT_VALUES);
         String methodName = method.getSimpleName().toString();
-        for (Property property :  ColumnProperty.from(context)) {
+        for (Property property : ColumnProperty.from(context)) {
             if (property.methodName().equals(methodName)) {
                 return ImmutableSet.of(methodName, property.humanName());
             }
@@ -73,20 +73,21 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
     private MethodSpec createToContentValuesMethod(Context context,
             ExecutableElement methodToImplement, ImmutableList<ColumnProperty> properties) {
         String methodName = methodToImplement.getSimpleName().toString();
+
         MethodSpec.Builder writeMethod = MethodSpec.methodBuilder(methodName)
                 .addAnnotation(Override.class)
                 .addModifiers(PUBLIC)
                 .returns(CONTENT_VALUES)
                 .addStatement("$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
 
-        Types typeUtils = context.processingEnvironment().getTypeUtils();
+        ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
+        addColumnAdaptersToMethod(writeMethod, properties, columnAdapters);
+
         for (ColumnProperty property : properties) {
-            TypeMirror factory = property.valuesAdapter();
+            TypeMirror factory = property.columnAdapter();
             if (factory != null) {
-                CodeBlock writeProperty = writeProperty(property, factory, typeUtils, context);
-                if (writeProperty != null) {
-                    writeMethod.addCode(writeProperty);
-                }
+                writeMethod.addStatement("$N.toContentValues(values, $S, $L())",
+                        columnAdapters.get(property), property.columnName(), property.methodName());
             } else if (property.supportedType()) {
                 writeMethod.addStatement("values.put($S, $L())", property.columnName(),
                         property.methodName());
@@ -96,21 +97,5 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
         }
         return writeMethod.addStatement("return values")
                 .build();
-    }
-
-    private CodeBlock writeProperty(ColumnProperty property, TypeMirror factory, Types typeUtils,
-            Context context) {
-        TypeElement factoryType = (TypeElement) typeUtils.asElement(factory);
-        ExecutableElement method = getStaticMethod(factoryType, property.type(), CONTENT_VALUES);
-        if (method != null) {
-            return CodeBlock.builder()
-                    .addStatement("$T $L = $T.$N($L())", CONTENT_VALUES, property.humanName(),
-                            TypeName.get(factory), method.getSimpleName(), property.methodName())
-                    .addStatement("if ($1L != null) values.putAll($1L)", property.humanName())
-                    .build();
-        }
-        error(context, property, "Class \"%s\" needs to define a public static method taking \"%s\""
-                + " and returning \"ContentValues\"", factoryType, property.type());
-        return null;
     }
 }

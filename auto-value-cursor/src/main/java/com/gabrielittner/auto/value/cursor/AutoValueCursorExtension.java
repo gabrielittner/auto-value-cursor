@@ -1,31 +1,30 @@
 package com.gabrielittner.auto.value.cursor;
 
 import com.gabrielittner.auto.value.ColumnProperty;
-import com.gabrielittner.auto.value.util.ElementUtil;
 import com.gabrielittner.auto.value.util.Property;
-import com.google.auto.common.MoreElements;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.ExecutableElement;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Types;
 
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getAutoValueClassClassName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getFinalClassClassName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newFinalClassConstructorCall;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
-import static com.gabrielittner.auto.value.util.ElementUtil.getStaticMethod;
 import static com.gabrielittner.auto.value.util.ElementUtil.hasStaticMethod;
 import static com.gabrielittner.auto.value.util.ElementUtil.typeExists;
 import static javax.lang.model.element.Modifier.FINAL;
@@ -73,18 +72,17 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .returns(getFinalClassClassName(context))
                 .addParameter(CURSOR, "cursor");
 
-        Types typeUtils = context.processingEnvironment().getTypeUtils();
+        ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
+        addColumnAdaptersToMethod(readMethod, properties, columnAdapters);
+
         String[] names = new String[properties.size()];
         for (int i = 0; i < properties.size(); i++) {
             ColumnProperty property = properties.get(i);
             names[i] = property.humanName();
 
-            TypeMirror factory = property.cursorAdapter();
-            if (factory != null) {
-                CodeBlock readProperty = readProperty(property, factory, typeUtils, context);
-                if (readProperty != null) {
-                    readMethod.addCode(readProperty);
-                }
+            if (property.columnAdapter() != null) {
+                readMethod.addStatement("$T $N = $N.fromCursor(cursor, $S)", property.type(),
+                        property.humanName(), columnAdapters.get(property), property.columnName());
             } else if (property.supportedType()) {
                 if (property.nullable()) {
                     readMethod.addCode(readNullableProperty(property));
@@ -126,21 +124,6 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
     }
 
-    private CodeBlock readProperty(ColumnProperty property, TypeMirror factory, Types typeUtils,
-            Context context) {
-        TypeElement factoryType = (TypeElement) typeUtils.asElement(factory);
-        ExecutableElement method = getStaticMethod(factoryType, CURSOR, property.type());
-        if (method != null) {
-            return CodeBlock.builder()
-                    .addStatement("$T $N = $T.$N(cursor)", property.type(), property.humanName(),
-                            TypeName.get(factory), method.getSimpleName())
-                    .build();
-        }
-        error(context, property, "Class \"%s\" needs to define a public static method taking a"
-                + " \"Cursor\" and returning \"%s\"", factoryType, property.type().toString());
-        return null;
-    }
-
     private FieldSpec createMapper(Context context) {
         TypeName func1Name = getFunc1TypeName(context);
         TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
@@ -169,5 +152,36 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     public static void error(Context context, Property property, String message, Object... args) {
         error(context, property, String.format(message, args));
+    }
+
+    public static ImmutableMap<Property, FieldSpec> getColumnAdapters(List<ColumnProperty> properties) {
+        Map<Property, FieldSpec> columnAdapters = new HashMap<>();
+        for (ColumnProperty property : properties) {
+            if (property.columnAdapter() != null && !columnAdapters.containsKey(property)) {
+                ClassName typeName = (ClassName) TypeName.get(property.columnAdapter());
+                String name = Character.toLowerCase(typeName.simpleName().charAt(0))
+                        + typeName.simpleName().substring(1);
+
+                columnAdapters.put(property, FieldSpec.builder(
+                        typeName, NameAllocator.toJavaIdentifier(name)).build());
+            }
+        }
+        return ImmutableMap.copyOf(columnAdapters);
+    }
+
+    public static void addColumnAdaptersToMethod(MethodSpec.Builder method,
+            List<ColumnProperty> properties, ImmutableMap<Property, FieldSpec> columnAdapters) {
+        if (columnAdapters.size() == 0) {
+            return;
+        }
+
+        List<FieldSpec> handledAdapters = new ArrayList<>(columnAdapters.size());
+        for (Property property : properties) {
+            FieldSpec adapter = columnAdapters.get(property);
+            if (adapter != null && !handledAdapters.contains(adapter)) {
+                method.addStatement("$1T $2N = new $1T()", adapter.type, adapter);
+                handledAdapters.add(adapter);
+            }
+        }
     }
 }
