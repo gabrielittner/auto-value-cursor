@@ -55,6 +55,10 @@ public final class ColumnProperty extends Property {
         return columnName != null ? columnName : humanName();
     }
 
+    public TypeMirror columnAdapter() {
+        return (TypeMirror) getAnnotationValue(element(), ColumnAdapter.class, "value");
+    }
+
     public String cursorMethod() {
         if (!supportedType) {
             return null;
@@ -86,9 +90,5 @@ public final class ColumnProperty extends Property {
         }
         throw new AssertionError(String.format("supportedType is true but type %s isn't handled",
                 type));
-    }
-
-    public TypeMirror columnAdapter() {
-        return (TypeMirror) getAnnotationValue(element(), ColumnAdapter.class, "value");
     }
 }
