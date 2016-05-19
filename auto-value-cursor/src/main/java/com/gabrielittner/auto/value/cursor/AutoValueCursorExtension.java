@@ -1,6 +1,7 @@
 package com.gabrielittner.auto.value.cursor;
 
 import com.gabrielittner.auto.value.ColumnProperty;
+import com.gabrielittner.auto.value.util.ElementUtil;
 import com.gabrielittner.auto.value.util.Property;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
@@ -21,16 +22,15 @@ import java.util.List;
 import java.util.Map;
 import javax.lang.model.element.TypeElement;
 
+import static com.gabrielittner.auto.value.util.AutoValueUtil.error;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getAutoValueClassClassName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getFinalClassClassName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newFinalClassConstructorCall;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
-import static com.gabrielittner.auto.value.util.ElementUtil.hasStaticMethod;
-import static com.gabrielittner.auto.value.util.ElementUtil.typeExists;
+import static com.gabrielittner.auto.value.util.ElementUtil.getMatchingStaticMethod;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
-import static javax.tools.Diagnostic.Kind.ERROR;
 
 @AutoService(AutoValueExtension.class)
 public class AutoValueCursorExtension extends AutoValueExtension {
@@ -45,8 +45,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     @Override
     public boolean applicable(Context context) {
         TypeElement valueClass = context.autoValueClass();
-        return hasStaticMethod(valueClass, CURSOR, ClassName.get(valueClass.asType()))
-                || hasStaticMethod(valueClass, null, getFunc1TypeName(context));
+        return getMatchingStaticMethod(valueClass, ClassName.get(valueClass), CURSOR).isPresent()
+                || getMatchingStaticMethod(valueClass, getFunc1TypeName(context)).isPresent();
     }
 
     @Override
@@ -57,7 +57,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         TypeSpec.Builder subclass = newTypeSpecBuilder(context, className, classToExtend, isFinal)
                 .addMethod(createReadMethod(context, properties));
 
-        if (typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
+        if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
             subclass.addField(createMapper(context));
         }
 
@@ -143,15 +143,6 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private TypeName getFunc1TypeName(Context context) {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
-    }
-
-    public static void error(Context context, Property property, String message) {
-        context.processingEnvironment().getMessager()
-                .printMessage(ERROR, message, property.element());
-    }
-
-    public static void error(Context context, Property property, String message, Object... args) {
-        error(context, property, String.format(message, args));
     }
 
     public static ImmutableMap<Property, FieldSpec> getColumnAdapters(List<ColumnProperty> properties) {
