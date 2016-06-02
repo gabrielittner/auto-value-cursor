@@ -2,17 +2,13 @@ package com.gabrielittner.auto.value;
 
 import com.gabrielittner.auto.value.cursor.ColumnAdapter;
 import com.gabrielittner.auto.value.cursor.ColumnName;
-import com.gabrielittner.auto.value.util.ElementUtil;
 import com.gabrielittner.auto.value.util.Property;
-import com.google.auto.common.AnnotationMirrors;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -28,15 +24,23 @@ public final class ColumnProperty extends Property {
         return values.build();
     }
 
-    private static final List<TypeName> SUPPORTED_TYPES = Arrays.asList(
-            TypeName.get(String.class),
-            TypeName.get(byte[].class), TypeName.get(Byte[].class),
-            TypeName.DOUBLE, TypeName.DOUBLE.box(),
-            TypeName.FLOAT,  TypeName.FLOAT.box(),
-            TypeName.INT, TypeName.INT.box(),
-            TypeName.LONG, TypeName.LONG.box(),
-            TypeName.SHORT, TypeName.SHORT.box(),
-            TypeName.BOOLEAN, TypeName.BOOLEAN.box());
+    private static final List<TypeName> SUPPORTED_TYPES =
+            Arrays.asList(
+                    TypeName.get(String.class),
+                    TypeName.get(byte[].class),
+                    TypeName.get(Byte[].class),
+                    TypeName.DOUBLE,
+                    TypeName.DOUBLE.box(),
+                    TypeName.FLOAT,
+                    TypeName.FLOAT.box(),
+                    TypeName.INT,
+                    TypeName.INT.box(),
+                    TypeName.LONG,
+                    TypeName.LONG.box(),
+                    TypeName.SHORT,
+                    TypeName.SHORT.box(),
+                    TypeName.BOOLEAN,
+                    TypeName.BOOLEAN.box());
 
     private final String columnName;
     private final boolean supportedType;
@@ -88,7 +92,7 @@ public final class ColumnProperty extends Property {
         if (type.equals(TypeName.BOOLEAN) || type.equals(TypeName.BOOLEAN.box())) {
             return "cursor.getInt($L) == 1";
         }
-        throw new AssertionError(String.format("supportedType is true but type %s isn't handled",
-                type));
+        throw new AssertionError(
+                String.format("supportedType is true but type %s isn't handled", type));
     }
 }

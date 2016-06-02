@@ -50,27 +50,27 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     }
 
     @Override
-    public String generateClass(Context context, String className, String classToExtend,
-            boolean isFinal) {
+    public String generateClass(
+            Context context, String className, String classToExtend, boolean isFinal) {
         ImmutableList<ColumnProperty> properties = ColumnProperty.from(context);
 
-        TypeSpec.Builder subclass = newTypeSpecBuilder(context, className, classToExtend, isFinal)
-                .addMethod(createReadMethod(context, properties));
+        TypeSpec.Builder subclass =
+                newTypeSpecBuilder(context, className, classToExtend, isFinal)
+                        .addMethod(createReadMethod(context, properties));
 
         if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
             subclass.addField(createMapper(context));
         }
 
-        return JavaFile.builder(context.packageName(), subclass.build())
-                .build()
-                .toString();
+        return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
     }
 
     private MethodSpec createReadMethod(Context context, ImmutableList<ColumnProperty> properties) {
-        MethodSpec.Builder readMethod = MethodSpec.methodBuilder(METHOD_NAME)
-                .addModifiers(STATIC)
-                .returns(getFinalClassClassName(context))
-                .addParameter(CURSOR, "cursor");
+        MethodSpec.Builder readMethod =
+                MethodSpec.methodBuilder(METHOD_NAME)
+                        .addModifiers(STATIC)
+                        .returns(getFinalClassClassName(context))
+                        .addParameter(CURSOR, "cursor");
 
         ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
         addColumnAdaptersToMethod(readMethod, properties, columnAdapters);
@@ -81,8 +81,12 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             names[i] = property.humanName();
 
             if (property.columnAdapter() != null) {
-                readMethod.addStatement("$T $N = $N.fromCursor(cursor, $S)", property.type(),
-                        property.humanName(), columnAdapters.get(property), property.columnName());
+                readMethod.addStatement(
+                        "$T $N = $N.fromCursor(cursor, $S)",
+                        property.type(),
+                        property.humanName(),
+                        columnAdapters.get(property),
+                        property.columnName());
             } else if (property.supportedType()) {
                 if (property.nullable()) {
                     readMethod.addCode(readNullableProperty(property));
@@ -90,13 +94,16 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                     readMethod.addCode(readProperty(property));
                 }
             } else if (property.nullable()) {
-                readMethod.addCode("$T $N = null; // can't be read from cursor\n", property.type(),
+                readMethod.addCode(
+                        "$T $N = null; // can't be read from cursor\n",
+                        property.type(),
                         property.humanName());
             } else {
                 error(context, property, "Property has type that can't be read from Cursor.");
             }
         }
-        return readMethod.addCode("return ")
+        return readMethod
+                .addCode("return ")
                 .addCode(newFinalClassConstructorCall(context, names))
                 .build();
     }
@@ -110,10 +117,11 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private CodeBlock readNullableProperty(ColumnProperty property) {
         String columnIndexVar = property.humanName() + "ColumnIndex";
-        CodeBlock getValue = CodeBlock.builder()
-                .add("cursor.isNull($L) ? null : ", columnIndexVar)
-                .add(property.cursorMethod(), columnIndexVar)
-                .build();
+        CodeBlock getValue =
+                CodeBlock.builder()
+                        .add("cursor.isNull($L) ? null : ", columnIndexVar)
+                        .add(property.cursorMethod(), columnIndexVar)
+                        .build();
         return CodeBlock.builder()
                 .addStatement("int $L = $L", columnIndexVar, getColumnIndex(property))
                 .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
@@ -126,16 +134,19 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private FieldSpec createMapper(Context context) {
         TypeName func1Name = getFunc1TypeName(context);
-        TypeSpec func1 = TypeSpec.anonymousClassBuilder("")
-                .addSuperinterface(func1Name)
-                .addMethod(MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
+        MethodSpec func1Method =
+                MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
                         .addAnnotation(Override.class)
                         .addModifiers(PUBLIC)
                         .addParameter(CURSOR, "c")
                         .returns(getFinalClassClassName(context))
                         .addStatement("return $L($N)", METHOD_NAME, "c")
-                        .build())
-                .build();
+                        .build();
+        TypeSpec func1 =
+                TypeSpec.anonymousClassBuilder("")
+                        .addSuperinterface(func1Name)
+                        .addMethod(func1Method)
+                        .build();
         return FieldSpec.builder(func1Name, FUNC1_FIELD_NAME, STATIC, FINAL)
                 .initializer("$L", func1)
                 .build();
@@ -145,23 +156,28 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
     }
 
-    public static ImmutableMap<Property, FieldSpec> getColumnAdapters(List<ColumnProperty> properties) {
+    public static ImmutableMap<Property, FieldSpec> getColumnAdapters(
+            List<ColumnProperty> properties) {
         Map<Property, FieldSpec> columnAdapters = new HashMap<>();
         for (ColumnProperty property : properties) {
             if (property.columnAdapter() != null && !columnAdapters.containsKey(property)) {
-                ClassName typeName = (ClassName) TypeName.get(property.columnAdapter());
-                String name = Character.toLowerCase(typeName.simpleName().charAt(0))
-                        + typeName.simpleName().substring(1);
-
-                columnAdapters.put(property, FieldSpec.builder(
-                        typeName, NameAllocator.toJavaIdentifier(name)).build());
+                ClassName clsName = (ClassName) TypeName.get(property.columnAdapter());
+                String name = NameAllocator.toJavaIdentifier(toLowerCase(clsName.simpleName()));
+                FieldSpec field = FieldSpec.builder(clsName, name).build();
+                columnAdapters.put(property, field);
             }
         }
         return ImmutableMap.copyOf(columnAdapters);
     }
 
-    public static void addColumnAdaptersToMethod(MethodSpec.Builder method,
-            List<ColumnProperty> properties, ImmutableMap<Property, FieldSpec> columnAdapters) {
+    private static String toLowerCase(String s) {
+        return Character.toLowerCase(s.charAt(0)) + s.substring(1);
+    }
+
+    public static void addColumnAdaptersToMethod(
+            MethodSpec.Builder method,
+            List<ColumnProperty> properties,
+            ImmutableMap<Property, FieldSpec> columnAdapters) {
         if (columnAdapters.size() == 0) {
             return;
         }
