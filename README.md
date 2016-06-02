@@ -113,14 +113,14 @@ or Maven:
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <scope>provided</scope>
 </dependency>
 <!-- if you need the @ColumnName or @ColumnAdapter annotations also include this: -->
 <dependency>
   <groupId>com.gabrielittner.auto.value</groupId>
   <artifactId>auto-value-cursor-annotations</artifactId>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
   <scope>compile</scope>
 </dependency>
 ```

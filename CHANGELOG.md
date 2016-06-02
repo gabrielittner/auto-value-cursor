@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+Version 0.5.0 *(2016-06-02)*
+----------------------------
+
+#### Supports: AutoValue 1.2
+
+- new `@ColumnAdapter` annotation used in combination with `ColumnTypeAdapter`
+    - unified annotation/adapter for `Cursor` and `ContentValues`
+    - allows to reuse your custom type adapters (e.g. a DateAdapter)
+- BREAKING: removed `@CursorAdapter` and `@ValuesAdapter`
+- added support for AutoValue classes that use `get` and `is` prefixes in properties
+- removed dependency on AutoValue
+
+
 Version 0.4.0 *(2016-04-17)*
 ----------------------------
 
