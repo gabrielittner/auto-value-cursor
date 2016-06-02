@@ -9,9 +9,10 @@ dependencies {
     compile project(':auto-value-cursor-annotations')
     compile deps.javapoet
     compile deps.auto_value
-    compile deps.auto_service
     compile deps.auto_common
     compile deps.auto_ext_util
+
+    compileOnly deps.auto_service
 
     testCompile deps.junit
     testCompile deps.truth
