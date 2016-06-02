@@ -11,7 +11,7 @@ Version 0.5.0 *(2016-06-02)*
     - allows to reuse your custom type adapters (e.g. a DateAdapter)
 - BREAKING: removed `@CursorAdapter` and `@ValuesAdapter`
 - added support for AutoValue classes that use `get` and `is` prefixes in properties
-- removed dependency on AutoValue
+- removed dependency on AutoService
 
 
 Version 0.4.0 *(2016-04-17)*
