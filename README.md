@@ -101,9 +101,9 @@ public class Avatar {
 Add a Gradle dependency:
 
 ```groovy
-apt 'com.gabrielittner.auto.value:auto-value-cursor:0.4.0'
+apt 'com.gabrielittner.auto.value:auto-value-cursor:0.5.0'
 // if you need the @ColumnName or @ColumnAdapter annotations also include this:
-compile 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.4.0'
+compile 'com.gabrielittner.auto.value:auto-value-cursor-annotations:0.5.0'
 ```
 (Using the [android-apt][apt] plugin)
 
