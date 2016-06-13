@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Version 1.0.0-rc1 *(2016-06-13)*
+----------------------------
+
+#### Supports: AutoValue 1.3-rc1
+
+- support for AutoValue 1.3-rc1
+
 Version 0.5.0 *(2016-06-02)*
 ----------------------------
 
@@ -12,7 +19,6 @@ Version 0.5.0 *(2016-06-02)*
 - BREAKING: removed `@CursorAdapter` and `@ValuesAdapter`
 - added support for AutoValue classes that use `get` and `is` prefixes in properties
 - removed dependency on AutoService
-
 
 Version 0.4.0 *(2016-04-17)*
 ----------------------------
