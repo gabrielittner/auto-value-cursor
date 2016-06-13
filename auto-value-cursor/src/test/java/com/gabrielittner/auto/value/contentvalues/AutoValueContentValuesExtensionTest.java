@@ -306,7 +306,7 @@ public class AutoValueContentValuesExtensionTest {
                 + "@AutoValue public abstract class Test {\n"
                 + "  public abstract int getA();\n"
                 + "  public abstract String getB();\n"
-                + "  public abstract ContentValues getContentValues();\n"
+                + "  public abstract ContentValues toContentValues();\n"
                 + "}\n");
 
         JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
@@ -319,7 +319,7 @@ public class AutoValueContentValuesExtensionTest {
                 + "    super(a, b);\n"
                 + "  }\n"
                 + "  @Override\n"
-                + "  public ContentValues getContentValues() {\n"
+                + "  public ContentValues toContentValues() {\n"
                 + "    ContentValues values = new ContentValues(2);\n"
                 + "    values.put(\"a\", getA());\n"
                 + "    values.put(\"b\", getB());\n"
