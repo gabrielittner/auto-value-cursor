@@ -25,6 +25,12 @@ shadowJar {
     relocate 'com.gabrielittner.auto.value.util', 'autovaluecursor.shaded.com.gabrielittner.auto.value.util'
 }
 
+artifacts {
+    runtime shadowJar
+    archives shadowJar
+}
+
+
 dependencies {
     compile project(':auto-value-cursor-annotations')
     compile deps.javapoet
@@ -44,4 +50,4 @@ dependencies {
     testCompile deps.jsr305
 }
 
-apply from: rootProject.file('gradle/mvn-push-shadow.gradle')
+apply from: rootProject.file('gradle/mvn-push.gradle')
