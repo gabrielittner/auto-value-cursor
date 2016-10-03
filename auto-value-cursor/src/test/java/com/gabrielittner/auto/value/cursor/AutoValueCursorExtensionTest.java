@@ -519,4 +519,66 @@ public class AutoValueCursorExtensionTest {
                 .and()
                 .generatesSources(expected);
     }
+
+
+    @Test
+    public void listOfObjects() {
+        JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
+                + "package test;\n"
+                + "import com.google.auto.value.AutoValue;\n"
+                + "import android.database.Cursor;\n"
+                + "import java.util.List;\n"
+
+                + "@AutoValue public abstract class Test {\n"
+                + "  public static List<Test> listOfBlah(Cursor cursor) { return null; }\n"
+                + "  public abstract int a();\n"
+                + "  public abstract String b();\n"
+                + "}\n");
+
+        JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
+                + "package test;\n"
+                + "import android.database.Cursor;\n"
+                + "import java.lang.String;\n"
+                + "final class AutoValue_Test extends $AutoValue_Test {\n"
+                + "  AutoValue_Test(int a, String b) {\n"
+                + "    super(a, b);\n"
+                + "  }\n"
+                + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
+                + "    int a = cursor.getInt(cursor.getColumnIndexOrThrow(\"a\"));\n"
+                + "    String b = cursor.getString(cursor.getColumnIndexOrThrow(\"b\"));\n"
+                + "    return new AutoValue_Test(a, b);\n"
+                + "  }\n"
+
+                + "  static List<AutoValue_Test> createListFromCursor(Cursor cursor) {\n"
+                + "            List<AutoValue_Test> list = new ArrayList<>();\n"
+                + "            cursor.moveToFirst();\n"
+                + "            while (!cursor.isAfterLast()) {\n"
+                + "                AutoValue_Test item = createFromCursor(cursor);\n"
+                + "                if (item != null) {\n"
+                + "                    list.add(item);\n"
+                + "                }\n"
+                + "                cursor.moveToNext();\n"
+                + "            }\n"
+                + "            return list;\n"
+                + "  }\n"
+                + "}\n");
+
+        assertAbout(javaSources())
+                .that(Collections.singletonList(source))
+                .processedWith(new AutoValueProcessor())
+                .compilesWithoutError()
+                .and()
+                .generatesSources(expected);
+    }
 }
+//        public static List<Country> createList(Cursor cursor) {
+//            List<Country> list = new ArrayList<>();
+//            cursor.moveToFirst();
+//            while (!cursor.isAfterLast()) {
+//                Country item = create(cursor);
+//                if (item != null) {
+//                    list.add(item);
+//                }
+//                cursor.moveToNext();
+//            }
+//            return list;

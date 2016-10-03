@@ -21,4 +21,4 @@ dependencies {
     testCompile deps.jsr305
 }
 
-apply from: rootProject.file('gradle/mvn-push.gradle')
+//apply from: rootProject.file('gradle/mvn-push.gradle')
