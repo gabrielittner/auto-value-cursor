@@ -39,6 +39,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
   private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
   private static final ClassName LIST = ClassName.get("java.util", "List");
+  private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
   private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
 
   private static final String SINGULAR_CREATE_METHOD_NAME = "createFromCursor";
@@ -60,8 +61,12 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     ImmutableList<ColumnProperty> properties = ColumnProperty.from(context);
 
     TypeSpec.Builder subclass = newTypeSpecBuilder(context, className, classToExtend, isFinal)
-            .addMethod(createReadMethod(context, properties))
-            .addMethod(createReadListMethod(context, properties));
+            .addMethod(createReadMethod(context, properties));
+
+    TypeElement valueClass = context.autoValueClass();
+    if (getMatchingStaticMethod(valueClass, ParameterizedTypeName.get(LIST, ClassName.get(valueClass)), CURSOR).isPresent()) {
+      subclass.addMethod(createReadListMethod(context));
+    }
 
     if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
       subclass.addField(createMapper(context));
@@ -113,43 +118,25 @@ public class AutoValueCursorExtension extends AutoValueExtension {
             .build();
   }
 
-  private MethodSpec createReadListMethod(Context context, ImmutableList<ColumnProperty> properties) {
+  private MethodSpec createReadListMethod(Context context) {
+    TypeElement valueClass = context.autoValueClass();
     MethodSpec.Builder readMethod =
             MethodSpec.methodBuilder(COLLECTION_CREATE_METHOD_NAME)
                     .addModifiers(STATIC)
-                    .returns()
+                    .returns(ParameterizedTypeName.get(LIST, ClassName.get(valueClass)))
+                    .addAnnotation(ClassName.get("android.support.annotation", "NonNull"))
                     .addParameter(CURSOR, "cursor");
-
-    ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
-    addColumnAdaptersToMethod(readMethod, properties, columnAdapters);
-
-    String[] names = new String[properties.size()];
-    for (int i = 0; i < properties.size(); i++) {
-      ColumnProperty property = properties.get(i);
-      names[i] = property.humanName();
-
-      if (property.columnAdapter() != null) {
-        readMethod.addStatement(
-                "$T $N = $N.fromCursor(cursor, $S)",
-                property.type(),
-                property.humanName(),
-                columnAdapters.get(property),
-                property.columnName());
-      } else if (property.supportedType()) {
-        if (property.nullable()) {
-          readMethod.addCode(readNullableProperty(property));
-        } else {
-          readMethod.addCode(readProperty(property));
-        }
-      } else if (property.nullable()) {
-        readMethod.addCode(
-                "$T $N = null; // can't be read from cursor\n",
-                property.type(),
-                property.humanName());
-      } else {
-        error(context, property, "Property has type that can't be read from Cursor.");
-      }
-    } return null;
+    readMethod.addStatement("$T list = new $T<>()", ParameterizedTypeName.get(LIST, ClassName.get(valueClass)), ARRAY_LIST);
+    readMethod.addStatement("cursor.moveToFirst()");
+    readMethod.beginControlFlow("while (!cursor.isAfterLast())");
+    readMethod.addStatement("$T item = $L(cursor)", valueClass, SINGULAR_CREATE_METHOD_NAME);
+    readMethod.beginControlFlow("if (item != null)");
+    readMethod.addStatement("list.add(item)");
+    readMethod.endControlFlow();
+    readMethod.addStatement("cursor.moveToNext()");
+    readMethod.endControlFlow();
+    readMethod.addStatement("return list");
+    return readMethod.build();
   }
 
   private CodeBlock readProperty(ColumnProperty property) {
