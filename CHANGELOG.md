@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Version 1.0.0 *(2016-09-09)*
+----------------------------
+
+#### Supports: AutoValue 1.3
+
+- support for AutoValue 1.3
+
 Version 1.0.0-rc1 *(2016-06-13)*
 ----------------------------
 
