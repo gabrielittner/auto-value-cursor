@@ -48,14 +48,14 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
     @Override
     public String generateClass(
             Context context, String className, String classToExtend,boolean isFinal) {
-        Optional<ExecutableElement> method =
-                getMatchingAbstractMethod(context.abstractMethods(), CONTENT_VALUES);
-        if (!method.isPresent()) throw new AssertionError("Method is null");
+        Optional<ExecutableElement> methodReturningContentValues = getMatchingAbstractMethod(context.abstractMethods(), CONTENT_VALUES);
+        if (!methodReturningContentValues.isPresent()) {
+            throw new AssertionError("Method is null");
+        }
         ImmutableList<ColumnProperty> properties = ColumnProperty.from(context);
 
-        TypeSpec.Builder subclass =
-                newTypeSpecBuilder(context, className, classToExtend, isFinal)
-                        .addMethod(createToContentValuesMethod(context, method.get(), properties));
+        TypeSpec.Builder subclass = newTypeSpecBuilder(context, className, classToExtend, isFinal)
+                        .addMethod(createToContentValuesMethod(context, methodReturningContentValues.get(), properties));
 
         return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
     }
@@ -71,8 +71,7 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
                         .addAnnotation(Override.class)
                         .addModifiers(PUBLIC)
                         .returns(CONTENT_VALUES)
-                        .addStatement(
-                                "$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
+                        .addStatement("$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
 
         ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
         addColumnAdaptersToMethod(writeMethod, properties, columnAdapters);

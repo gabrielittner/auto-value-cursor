@@ -16,10 +16,12 @@ import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.lang.model.element.TypeElement;
 
 import static com.gabrielittner.auto.value.util.AutoValueUtil.error;
@@ -35,160 +37,189 @@ import static javax.lang.model.element.Modifier.STATIC;
 @AutoService(AutoValueExtension.class)
 public class AutoValueCursorExtension extends AutoValueExtension {
 
-    private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
-    private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
+  private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
+  private static final ClassName LIST = ClassName.get("java.util", "List");
+  private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
+  private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
 
-    private static final String METHOD_NAME = "createFromCursor";
-    private static final String FUNC1_FIELD_NAME = "MAPPER";
-    private static final String FUNC1_METHOD_NAME = "call";
+  private static final String SINGULAR_CREATE_METHOD_NAME = "createFromCursor";
+  private static final String COLLECTION_CREATE_METHOD_NAME = "createListFromCursor";
+  private static final String FUNC1_FIELD_NAME = "MAPPER";
+  private static final String FUNC1_METHOD_NAME = "call";
 
-    @Override
-    public boolean applicable(Context context) {
-        TypeElement valueClass = context.autoValueClass();
-        return getMatchingStaticMethod(valueClass, ClassName.get(valueClass), CURSOR).isPresent()
-                || getMatchingStaticMethod(valueClass, getFunc1TypeName(context)).isPresent();
+  @Override
+  public boolean applicable(Context context) {
+    TypeElement valueClass = context.autoValueClass();
+    return getMatchingStaticMethod(valueClass, ClassName.get(valueClass), CURSOR).isPresent()
+            || getMatchingStaticMethod(valueClass, getFunc1TypeName(context)).isPresent()
+            || getMatchingStaticMethod(valueClass, ParameterizedTypeName.get(LIST, ClassName.get(valueClass)), CURSOR).isPresent();
+  }
+
+  @Override
+  public String generateClass(
+          Context context, String className, String classToExtend, boolean isFinal) {
+    ImmutableList<ColumnProperty> properties = ColumnProperty.from(context);
+
+    TypeSpec.Builder subclass = newTypeSpecBuilder(context, className, classToExtend, isFinal)
+            .addMethod(createReadMethod(context, properties));
+
+    TypeElement valueClass = context.autoValueClass();
+    if (getMatchingStaticMethod(valueClass, ParameterizedTypeName.get(LIST, ClassName.get(valueClass)), CURSOR).isPresent()) {
+      subclass.addMethod(createReadListMethod(context));
     }
 
-    @Override
-    public String generateClass(
-            Context context, String className, String classToExtend, boolean isFinal) {
-        ImmutableList<ColumnProperty> properties = ColumnProperty.from(context);
+    if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
+      subclass.addField(createMapper(context));
+    }
 
-        TypeSpec.Builder subclass =
-                newTypeSpecBuilder(context, className, classToExtend, isFinal)
-                        .addMethod(createReadMethod(context, properties));
+    return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
+  }
 
-        if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
-            subclass.addField(createMapper(context));
+  private MethodSpec createReadMethod(Context context, ImmutableList<ColumnProperty> properties) {
+    MethodSpec.Builder readMethod =
+            MethodSpec.methodBuilder(SINGULAR_CREATE_METHOD_NAME)
+                    .addModifiers(STATIC)
+                    .returns(getFinalClassClassName(context))
+                    .addParameter(CURSOR, "cursor");
+
+    ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
+    addColumnAdaptersToMethod(readMethod, properties, columnAdapters);
+
+    String[] names = new String[properties.size()];
+    for (int i = 0; i < properties.size(); i++) {
+      ColumnProperty property = properties.get(i);
+      names[i] = property.humanName();
+
+      if (property.columnAdapter() != null) {
+        readMethod.addStatement(
+                "$T $N = $N.fromCursor(cursor, $S)",
+                property.type(),
+                property.humanName(),
+                columnAdapters.get(property),
+                property.columnName());
+      } else if (property.supportedType()) {
+        if (property.nullable()) {
+          readMethod.addCode(readNullableProperty(property));
+        } else {
+          readMethod.addCode(readProperty(property));
         }
+      } else if (property.nullable()) {
+        readMethod.addCode(
+                "$T $N = null; // can't be read from cursor\n",
+                property.type(),
+                property.humanName());
+      } else {
+        error(context, property, "Property has type that can't be read from Cursor.");
+      }
+    }
+    return readMethod
+            .addCode("return ")
+            .addCode(newFinalClassConstructorCall(context, names))
+            .build();
+  }
 
-        return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
+  private MethodSpec createReadListMethod(Context context) {
+    TypeElement valueClass = context.autoValueClass();
+    MethodSpec.Builder readMethod =
+            MethodSpec.methodBuilder(COLLECTION_CREATE_METHOD_NAME)
+                    .addModifiers(STATIC)
+                    .returns(ParameterizedTypeName.get(LIST, ClassName.get(valueClass)))
+                    .addAnnotation(ClassName.get("android.support.annotation", "NonNull"))
+                    .addParameter(CURSOR, "cursor");
+    readMethod.addStatement("$T list = new $T<>()", ParameterizedTypeName.get(LIST, ClassName.get(valueClass)), ARRAY_LIST);
+    readMethod.addStatement("cursor.moveToFirst()");
+    readMethod.beginControlFlow("while (!cursor.isAfterLast())");
+    readMethod.addStatement("$T item = $L(cursor)", valueClass, SINGULAR_CREATE_METHOD_NAME);
+    readMethod.beginControlFlow("if (item != null)");
+    readMethod.addStatement("list.add(item)");
+    readMethod.endControlFlow();
+    readMethod.addStatement("cursor.moveToNext()");
+    readMethod.endControlFlow();
+    readMethod.addStatement("return list");
+    return readMethod.build();
+  }
+
+  private CodeBlock readProperty(ColumnProperty property) {
+    CodeBlock getValue = CodeBlock.of(property.cursorMethod(), getColumnIndex(property));
+    return CodeBlock.builder()
+            .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
+            .build();
+  }
+
+  private CodeBlock readNullableProperty(ColumnProperty property) {
+    String columnIndexVar = property.humanName() + "ColumnIndex";
+    CodeBlock getValue =
+            CodeBlock.builder()
+                    .add("cursor.isNull($L) ? null : ", columnIndexVar)
+                    .add(property.cursorMethod(), columnIndexVar)
+                    .build();
+    return CodeBlock.builder()
+            .addStatement("int $L = $L", columnIndexVar, getColumnIndex(property))
+            .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
+            .build();
+  }
+
+  private CodeBlock getColumnIndex(ColumnProperty property) {
+    return CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
+  }
+
+  private FieldSpec createMapper(Context context) {
+    TypeName func1Name = getFunc1TypeName(context);
+    MethodSpec func1Method =
+            MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
+                    .addAnnotation(Override.class)
+                    .addModifiers(PUBLIC)
+                    .addParameter(CURSOR, "c")
+                    .returns(getFinalClassClassName(context))
+                    .addStatement("return $L($N)", SINGULAR_CREATE_METHOD_NAME, "c")
+                    .build();
+    TypeSpec func1 =
+            TypeSpec.anonymousClassBuilder("")
+                    .addSuperinterface(func1Name)
+                    .addMethod(func1Method)
+                    .build();
+    return FieldSpec.builder(func1Name, FUNC1_FIELD_NAME, STATIC, FINAL)
+            .initializer("$L", func1)
+            .build();
+  }
+
+  private TypeName getFunc1TypeName(Context context) {
+    return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
+  }
+
+  public static ImmutableMap<Property, FieldSpec> getColumnAdapters(
+          List<ColumnProperty> properties) {
+    Map<Property, FieldSpec> columnAdapters = new HashMap<>();
+    for (ColumnProperty property : properties) {
+      if (property.columnAdapter() != null && !columnAdapters.containsKey(property)) {
+        ClassName clsName = (ClassName) TypeName.get(property.columnAdapter());
+        String name = NameAllocator.toJavaIdentifier(toLowerCase(clsName.simpleName()));
+        FieldSpec field = FieldSpec.builder(clsName, name).build();
+        columnAdapters.put(property, field);
+      }
+    }
+    return ImmutableMap.copyOf(columnAdapters);
+  }
+
+  private static String toLowerCase(String s) {
+    return Character.toLowerCase(s.charAt(0)) + s.substring(1);
+  }
+
+  public static void addColumnAdaptersToMethod(
+          MethodSpec.Builder method,
+          List<ColumnProperty> properties,
+          ImmutableMap<Property, FieldSpec> columnAdapters) {
+    if (columnAdapters.size() == 0) {
+      return;
     }
 
-    private MethodSpec createReadMethod(Context context, ImmutableList<ColumnProperty> properties) {
-        MethodSpec.Builder readMethod =
-                MethodSpec.methodBuilder(METHOD_NAME)
-                        .addModifiers(STATIC)
-                        .returns(getFinalClassClassName(context))
-                        .addParameter(CURSOR, "cursor");
-
-        ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
-        addColumnAdaptersToMethod(readMethod, properties, columnAdapters);
-
-        String[] names = new String[properties.size()];
-        for (int i = 0; i < properties.size(); i++) {
-            ColumnProperty property = properties.get(i);
-            names[i] = property.humanName();
-
-            if (property.columnAdapter() != null) {
-                readMethod.addStatement(
-                        "$T $N = $N.fromCursor(cursor, $S)",
-                        property.type(),
-                        property.humanName(),
-                        columnAdapters.get(property),
-                        property.columnName());
-            } else if (property.supportedType()) {
-                if (property.nullable()) {
-                    readMethod.addCode(readNullableProperty(property));
-                } else {
-                    readMethod.addCode(readProperty(property));
-                }
-            } else if (property.nullable()) {
-                readMethod.addCode(
-                        "$T $N = null; // can't be read from cursor\n",
-                        property.type(),
-                        property.humanName());
-            } else {
-                error(context, property, "Property has type that can't be read from Cursor.");
-            }
-        }
-        return readMethod
-                .addCode("return ")
-                .addCode(newFinalClassConstructorCall(context, names))
-                .build();
+    List<FieldSpec> handledAdapters = new ArrayList<>(columnAdapters.size());
+    for (Property property : properties) {
+      FieldSpec adapter = columnAdapters.get(property);
+      if (adapter != null && !handledAdapters.contains(adapter)) {
+        method.addStatement("$1T $2N = new $1T()", adapter.type, adapter);
+        handledAdapters.add(adapter);
+      }
     }
-
-    private CodeBlock readProperty(ColumnProperty property) {
-        CodeBlock getValue = CodeBlock.of(property.cursorMethod(), getColumnIndex(property));
-        return CodeBlock.builder()
-                .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
-                .build();
-    }
-
-    private CodeBlock readNullableProperty(ColumnProperty property) {
-        String columnIndexVar = property.humanName() + "ColumnIndex";
-        CodeBlock getValue =
-                CodeBlock.builder()
-                        .add("cursor.isNull($L) ? null : ", columnIndexVar)
-                        .add(property.cursorMethod(), columnIndexVar)
-                        .build();
-        return CodeBlock.builder()
-                .addStatement("int $L = $L", columnIndexVar, getColumnIndex(property))
-                .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
-                .build();
-    }
-
-    private CodeBlock getColumnIndex(ColumnProperty property) {
-        return CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
-    }
-
-    private FieldSpec createMapper(Context context) {
-        TypeName func1Name = getFunc1TypeName(context);
-        MethodSpec func1Method =
-                MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
-                        .addAnnotation(Override.class)
-                        .addModifiers(PUBLIC)
-                        .addParameter(CURSOR, "c")
-                        .returns(getFinalClassClassName(context))
-                        .addStatement("return $L($N)", METHOD_NAME, "c")
-                        .build();
-        TypeSpec func1 =
-                TypeSpec.anonymousClassBuilder("")
-                        .addSuperinterface(func1Name)
-                        .addMethod(func1Method)
-                        .build();
-        return FieldSpec.builder(func1Name, FUNC1_FIELD_NAME, STATIC, FINAL)
-                .initializer("$L", func1)
-                .build();
-    }
-
-    private TypeName getFunc1TypeName(Context context) {
-        return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
-    }
-
-    public static ImmutableMap<Property, FieldSpec> getColumnAdapters(
-            List<ColumnProperty> properties) {
-        Map<Property, FieldSpec> columnAdapters = new HashMap<>();
-        for (ColumnProperty property : properties) {
-            if (property.columnAdapter() != null && !columnAdapters.containsKey(property)) {
-                ClassName clsName = (ClassName) TypeName.get(property.columnAdapter());
-                String name = NameAllocator.toJavaIdentifier(toLowerCase(clsName.simpleName()));
-                FieldSpec field = FieldSpec.builder(clsName, name).build();
-                columnAdapters.put(property, field);
-            }
-        }
-        return ImmutableMap.copyOf(columnAdapters);
-    }
-
-    private static String toLowerCase(String s) {
-        return Character.toLowerCase(s.charAt(0)) + s.substring(1);
-    }
-
-    public static void addColumnAdaptersToMethod(
-            MethodSpec.Builder method,
-            List<ColumnProperty> properties,
-            ImmutableMap<Property, FieldSpec> columnAdapters) {
-        if (columnAdapters.size() == 0) {
-            return;
-        }
-
-        List<FieldSpec> handledAdapters = new ArrayList<>(columnAdapters.size());
-        for (Property property : properties) {
-            FieldSpec adapter = columnAdapters.get(property);
-            if (adapter != null && !handledAdapters.contains(adapter)) {
-                method.addStatement("$1T $2N = new $1T()", adapter.type, adapter);
-                handledAdapters.add(adapter);
-            }
-        }
-    }
+  }
 }
