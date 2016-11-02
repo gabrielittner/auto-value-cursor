@@ -106,8 +106,8 @@ public class AutoValueCursorExtensionTest {
                 + "  }\n"
                 + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
                 + "    int a = cursor.getInt(cursor.getColumnIndexOrThrow(\"a\"));\n"
-                + "    int bColumnIndex = cursor.getColumnIndexOrThrow(\"b\");"
-                + "    String b = cursor.isNull(bColumnIndex) ? null : cursor.getString(bColumnIndex);\n"
+                + "    int bColumnIndex = cursor.getColumnIndex(\"b\");"
+                + "    String b = (bColumnIndex == -1 || cursor.isNull(bColumnIndex)) ? null : cursor.getString(bColumnIndex);\n"
                 + "    return new AutoValue_Test(a, b);\n"
                 + "  }\n"
                 + "}\n");
@@ -144,8 +144,8 @@ public class AutoValueCursorExtensionTest {
                 + "  }\n"
                 + "  static AutoValue_Test createFromCursor(Cursor cursor) {\n"
                 + "    int a = cursor.getInt(cursor.getColumnIndexOrThrow(\"a\"));\n"
-                + "    int bColumnIndex = cursor.getColumnIndexOrThrow(\"column_b\");"
-                + "    String b = cursor.isNull(bColumnIndex) ? null : cursor.getString(bColumnIndex);\n"
+                + "    int bColumnIndex = cursor.getColumnIndex(\"column_b\");"
+                + "    String b = (bColumnIndex == -1 || cursor.isNull(bColumnIndex)) ? null : cursor.getString(bColumnIndex);\n"
                 + "    return new AutoValue_Test(a, b);\n"
                 + "  }\n"
                 + "}\n");
