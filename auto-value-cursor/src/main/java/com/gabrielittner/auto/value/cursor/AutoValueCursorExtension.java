@@ -109,7 +109,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     }
 
     private CodeBlock readProperty(ColumnProperty property) {
-        CodeBlock getValue = CodeBlock.of(property.cursorMethod(), getColumnIndex(property));
+        CodeBlock getValue = CodeBlock.of(property.cursorMethod(), getColumnIndexOrThrow(property));
         return CodeBlock.builder()
                 .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
                 .build();
@@ -119,7 +119,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         String columnIndexVar = property.humanName() + "ColumnIndex";
         CodeBlock getValue =
                 CodeBlock.builder()
-                        .add("cursor.isNull($L) ? null : ", columnIndexVar)
+                        .add("($L == -1 || cursor.isNull($L)) ? null : ", columnIndexVar, columnIndexVar)
                         .add(property.cursorMethod(), columnIndexVar)
                         .build();
         return CodeBlock.builder()
@@ -128,8 +128,12 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .build();
     }
 
-    private CodeBlock getColumnIndex(ColumnProperty property) {
+    private CodeBlock getColumnIndexOrThrow(ColumnProperty property) {
         return CodeBlock.of("cursor.getColumnIndexOrThrow($S)", property.columnName());
+    }
+
+    private CodeBlock getColumnIndex(ColumnProperty property) {
+        return CodeBlock.of("cursor.getColumnIndex($S)", property.columnName());
     }
 
     private FieldSpec createMapper(Context context) {
