@@ -19,9 +19,9 @@ shadowJar {
     classifier = ''
     configurations = [shadedConfig]
 
-    relocate 'com.google.common', 'autovaluewith.shaded.com.google.common'
-    relocate 'com.google.auto.common', 'autovaluewith.shaded.com.google.auto.common'
-    relocate 'com.google.thirdparty', 'autovaluewith.shaded.com.google.thirdparty'
+    relocate 'com.google.common', 'autovaluecursor.shaded.com.google.common'
+    relocate 'com.google.auto.common', 'autovaluecursor.shaded.com.google.auto.common'
+    relocate 'com.google.thirdparty', 'autovaluecursor.shaded.com.google.thirdparty'
     relocate 'com.gabrielittner.auto.value.util', 'autovaluecursor.shaded.com.gabrielittner.auto.value.util'
 }
 

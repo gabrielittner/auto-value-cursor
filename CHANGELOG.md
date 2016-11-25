@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Version 1.0.1 *(2016-11-25)*
+----------------------------
+
+#### Supports: AutoValue 1.3
+
+- `@Nullable` properties don't require their column to be present
+
 Version 1.0.0 *(2016-09-09)*
 ----------------------------
 
