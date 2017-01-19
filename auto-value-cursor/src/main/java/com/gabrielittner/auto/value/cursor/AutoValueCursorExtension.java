@@ -37,16 +37,20 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private static final ClassName CURSOR = ClassName.get("android.database", "Cursor");
     private static final ClassName FUNC1 = ClassName.get("rx.functions", "Func1");
+    private static final ClassName FUNCTION = ClassName.get("io.reactivex.functions", "Function");
 
     private static final String METHOD_NAME = "createFromCursor";
     private static final String FUNC1_FIELD_NAME = "MAPPER";
     private static final String FUNC1_METHOD_NAME = "call";
+    private static final String FUNCTION_FIELD_NAME = "MAPPER_FUNCTION";
+    private static final String FUNCTION_METHOD_NAME = "apply";
 
     @Override
     public boolean applicable(Context context) {
         TypeElement valueClass = context.autoValueClass();
         return getMatchingStaticMethod(valueClass, ClassName.get(valueClass), CURSOR).isPresent()
-                || getMatchingStaticMethod(valueClass, getFunc1TypeName(context)).isPresent();
+                || getMatchingStaticMethod(valueClass, getFunc1TypeName(context)).isPresent()
+                || getMatchingStaticMethod(valueClass, getFunctionTypeName(context)).isPresent();
     }
 
     @Override
@@ -59,7 +63,11 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                         .addMethod(createReadMethod(context, properties));
 
         if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
-            subclass.addField(createMapper(context));
+            subclass.addField(createRxJava1Mapper(context));
+        }
+
+        if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNCTION)) {
+            subclass.addField(createRxJava2Mapper(context));
         }
 
         return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
@@ -136,7 +144,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return CodeBlock.of("cursor.getColumnIndex($S)", property.columnName());
     }
 
-    private FieldSpec createMapper(Context context) {
+    private FieldSpec createRxJava1Mapper(Context context) {
         TypeName func1Name = getFunc1TypeName(context);
         MethodSpec func1Method =
                 MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
@@ -156,8 +164,32 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .build();
     }
 
+    private FieldSpec createRxJava2Mapper(Context context) {
+        TypeName functionName = getFunctionTypeName(context);
+        MethodSpec functionMethod =
+                MethodSpec.methodBuilder(FUNCTION_METHOD_NAME)
+                        .addAnnotation(Override.class)
+                        .addModifiers(PUBLIC)
+                        .addParameter(CURSOR, "c")
+                        .returns(getFinalClassClassName(context))
+                        .addStatement("return $L($N)", METHOD_NAME, "c")
+                        .build();
+        TypeSpec function =
+                TypeSpec.anonymousClassBuilder("")
+                        .addSuperinterface(functionName)
+                        .addMethod(functionMethod)
+                        .build();
+        return FieldSpec.builder(functionName, FUNCTION_FIELD_NAME, STATIC, FINAL)
+                .initializer("$L", function)
+                .build();
+    }
+
     private TypeName getFunc1TypeName(Context context) {
         return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
+    }
+
+    private TypeName getFunctionTypeName(Context context) {
+        return ParameterizedTypeName.get(FUNCTION, CURSOR, getAutoValueClassClassName(context));
     }
 
     public static ImmutableMap<Property, FieldSpec> getColumnAdapters(

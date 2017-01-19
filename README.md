@@ -25,6 +25,11 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
     return AutoValue_User.MAPPER;
   }
 
+  // Optional: if your project includes RxJava 2 the extension will generate a Function<Cursor, User>
+  public static Function<Cursor, User> mapper() {
+    return AutoValue_User.MAPPER_FUNCTION;
+  }
+
   // Optional: When you include an abstract method that returns ContentValues and doesn't have
   // any parameters the extension will implement it for you
   abstract ContentValues toContentValues();
