@@ -1,7 +1,6 @@
 package com.gabrielittner.auto.value.contentvalues;
 
 import com.gabrielittner.auto.value.ColumnProperty;
-import com.gabrielittner.auto.value.util.Property;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.base.Optional;
@@ -15,10 +14,8 @@ import com.squareup.javapoet.TypeSpec;
 import java.util.Collections;
 import java.util.Set;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeMirror;
 
 import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.addColumnAdaptersToMethod;
-import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.getColumnAdapters;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.error;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
 import static com.gabrielittner.auto.value.util.ElementUtil.getMatchingAbstractMethod;
@@ -74,15 +71,13 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
                         .addStatement(
                                 "$1T values = new $1T($2L)", CONTENT_VALUES, properties.size());
 
-        ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
-        addColumnAdaptersToMethod(writeMethod, properties, columnAdapters);
+        ImmutableMap<ClassName, String> columnAdapters = addColumnAdaptersToMethod(writeMethod, properties);
 
         for (ColumnProperty property : properties) {
-            TypeMirror factory = property.columnAdapter();
-            if (factory != null) {
+            if (property.columnAdapter() != null) {
                 writeMethod.addStatement(
-                        "$N.toContentValues(values, $S, $L())",
-                        columnAdapters.get(property),
+                        "$L.toContentValues(values, $S, $L())",
+                        columnAdapters.get(property.columnAdapter()),
                         property.columnName(),
                         property.methodName());
             } else if (property.supportedType()) {
