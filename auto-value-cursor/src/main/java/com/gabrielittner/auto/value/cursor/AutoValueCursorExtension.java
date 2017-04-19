@@ -2,7 +2,6 @@ package com.gabrielittner.auto.value.cursor;
 
 import com.gabrielittner.auto.value.ColumnProperty;
 import com.gabrielittner.auto.value.util.ElementUtil;
-import com.gabrielittner.auto.value.util.Property;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
@@ -16,8 +15,7 @@ import com.squareup.javapoet.NameAllocator;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.lang.model.element.TypeElement;
@@ -28,6 +26,7 @@ import static com.gabrielittner.auto.value.util.AutoValueUtil.getFinalClassClass
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newFinalClassConstructorCall;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
 import static com.gabrielittner.auto.value.util.ElementUtil.getMatchingStaticMethod;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
@@ -80,8 +79,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                         .returns(getFinalClassClassName(context))
                         .addParameter(CURSOR, "cursor");
 
-        ImmutableMap<Property, FieldSpec> columnAdapters = getColumnAdapters(properties);
-        addColumnAdaptersToMethod(readMethod, properties, columnAdapters);
+        ImmutableMap<ClassName, String> columnAdapters = addColumnAdaptersToMethod(readMethod, properties);
 
         String[] names = new String[properties.size()];
         for (int i = 0; i < properties.size(); i++) {
@@ -90,10 +88,10 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
             if (property.columnAdapter() != null) {
                 readMethod.addStatement(
-                        "$T $N = $N.fromCursor(cursor, $S)",
+                        "$T $N = $L.fromCursor(cursor, $S)",
                         property.type(),
                         property.humanName(),
-                        columnAdapters.get(property),
+                        columnAdapters.get(property.columnAdapter()),
                         property.columnName());
             } else if (property.supportedType()) {
                 if (property.nullable()) {
@@ -117,7 +115,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     }
 
     private CodeBlock readProperty(ColumnProperty property) {
-        CodeBlock getValue = CodeBlock.of(property.cursorMethod(), getColumnIndexOrThrow(property));
+        CodeBlock getValue = CodeBlock.of(checkNotNull(property.cursorMethod()), getColumnIndexOrThrow(property));
         return CodeBlock.builder()
                 .addStatement("$T $N = $L", property.type(), property.humanName(), getValue)
                 .build();
@@ -125,10 +123,11 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private CodeBlock readNullableProperty(ColumnProperty property) {
         String columnIndexVar = property.humanName() + "ColumnIndex";
+        String cursorMethod = checkNotNull(property.cursorMethod());
         CodeBlock getValue =
                 CodeBlock.builder()
                         .add("($L == -1 || cursor.isNull($L)) ? null : ", columnIndexVar, columnIndexVar)
-                        .add(property.cursorMethod(), columnIndexVar)
+                        .add(cursorMethod, columnIndexVar)
                         .build();
         return CodeBlock.builder()
                 .addStatement("int $L = $L", columnIndexVar, getColumnIndex(property))
@@ -192,15 +191,17 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return ParameterizedTypeName.get(FUNCTION, CURSOR, getAutoValueClassClassName(context));
     }
 
-    public static ImmutableMap<Property, FieldSpec> getColumnAdapters(
+    public static ImmutableMap<ClassName, String> addColumnAdaptersToMethod(
+            MethodSpec.Builder method,
             List<ColumnProperty> properties) {
-        Map<Property, FieldSpec> columnAdapters = new HashMap<>();
+        Map<ClassName, String> columnAdapters = new LinkedHashMap<>();
+        NameAllocator nameAllocator = new NameAllocator();
         for (ColumnProperty property : properties) {
-            if (property.columnAdapter() != null && !columnAdapters.containsKey(property)) {
-                ClassName clsName = (ClassName) TypeName.get(property.columnAdapter());
-                String name = NameAllocator.toJavaIdentifier(toLowerCase(clsName.simpleName()));
-                FieldSpec field = FieldSpec.builder(clsName, name).build();
-                columnAdapters.put(property, field);
+            ClassName adapter = property.columnAdapter();
+            if (adapter != null && !columnAdapters.containsKey(adapter)) {
+                String name = nameAllocator.newName(toLowerCase(adapter.simpleName()));
+                method.addStatement("$1T $2L = new $1T()", adapter, name);
+                columnAdapters.put(adapter, name);
             }
         }
         return ImmutableMap.copyOf(columnAdapters);
@@ -208,23 +209,5 @@ public class AutoValueCursorExtension extends AutoValueExtension {
 
     private static String toLowerCase(String s) {
         return Character.toLowerCase(s.charAt(0)) + s.substring(1);
-    }
-
-    public static void addColumnAdaptersToMethod(
-            MethodSpec.Builder method,
-            List<ColumnProperty> properties,
-            ImmutableMap<Property, FieldSpec> columnAdapters) {
-        if (columnAdapters.size() == 0) {
-            return;
-        }
-
-        List<FieldSpec> handledAdapters = new ArrayList<>(columnAdapters.size());
-        for (Property property : properties) {
-            FieldSpec adapter = columnAdapters.get(property);
-            if (adapter != null && !handledAdapters.contains(adapter)) {
-                method.addStatement("$1T $2N = new $1T()", adapter.type, adapter);
-                handledAdapters.add(adapter);
-            }
-        }
     }
 }

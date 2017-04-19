@@ -5,6 +5,7 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 import com.gabrielittner.auto.value.util.Property;
 import com.google.auto.value.extension.AutoValueExtension;
 import com.google.common.collect.ImmutableList;
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import java.util.Arrays;
 import java.util.List;
@@ -59,8 +60,9 @@ public final class ColumnProperty extends Property {
         return columnName != null ? columnName : humanName();
     }
 
-    public TypeMirror columnAdapter() {
-        return (TypeMirror) getAnnotationValue(element(), ColumnAdapter.class, "value");
+    public ClassName columnAdapter() {
+        TypeMirror mirror = (TypeMirror) getAnnotationValue(element(), ColumnAdapter.class, "value");
+        return mirror != null ? (ClassName) TypeName.get(mirror) : null;
     }
 
     public String cursorMethod() {
