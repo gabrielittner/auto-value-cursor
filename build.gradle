@@ -25,11 +25,11 @@ ext.deps = [
         auto_common: 'com.google.auto:auto-common:0.8',
         auto_ext_util: 'com.gabrielittner.auto.value:auto-value-extension-util:0.3.0',
 
-        auto_service: 'com.google.auto.service:auto-service:1.0-rc2',
+        auto_service: 'com.google.auto.service:auto-service:1.0-rc3',
         android: 'com.google.android:android:2.1.2',
 
         junit: 'junit:junit:4.12',
-        truth: 'com.google.truth:truth:0.30',
-        compile_testing: 'com.google.testing.compile:compile-testing:0.9',
-        jsr305: 'com.google.code.findbugs:jsr305:3.0.1',
+        truth: 'com.google.truth:truth:0.32',
+        compile_testing: 'com.google.testing.compile:compile-testing:0.10',
+        jsr305: 'com.google.code.findbugs:jsr305:3.0.2',
 ]
