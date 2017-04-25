@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+Version 1.1.0 *(2017-04-25)*
+----------------------------
+
+#### Supports: AutoValue 1.3 and 1.4
+
+- support generating a mapper for rxjava2
+- fix generating invalid code when adapters have identical names
+
 Version 1.0.1 *(2016-11-25)*
 ----------------------------
 

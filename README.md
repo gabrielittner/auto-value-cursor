@@ -108,9 +108,9 @@ public class Avatar {
 Add a Gradle dependency:
 
 ```groovy
-annotationProcessor 'com.gabrielittner.auto.value:auto-value-cursor:1.0.1'
+annotationProcessor 'com.gabrielittner.auto.value:auto-value-cursor:1.1.0'
 // if you need the @ColumnName or @ColumnAdapter annotations also include this:
-compile 'com.gabrielittner.auto.value:auto-value-cursor-annotations:1.0.1'
+compile 'com.gabrielittner.auto.value:auto-value-cursor-annotations:1.1.0'
 ```
 
 Snapshots of the development version are available in [Sonatype's `snapshots` repository][snap].
