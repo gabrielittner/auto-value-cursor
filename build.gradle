@@ -5,8 +5,10 @@ buildscript {
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.17.0'
     }
 }
+apply plugin: 'com.github.ben-manes.versions'
 
 allprojects {
     repositories {
@@ -21,7 +23,7 @@ ext {
 
 ext.deps = [
         javapoet: 'com.squareup:javapoet:1.9.0',
-        auto_value: 'com.google.auto.value:auto-value:1.4.1',
+        auto_value: 'com.google.auto.value:auto-value:1.5.2',
         auto_common: 'com.google.auto:auto-common:0.8',
         auto_ext_util: 'com.gabrielittner.auto.value:auto-value-extension-util:0.3.0',
 
@@ -29,7 +31,7 @@ ext.deps = [
         android: 'com.google.android:android:2.1.2',
 
         junit: 'junit:junit:4.12',
-        truth: 'com.google.truth:truth:0.34',
-        compile_testing: 'com.google.testing.compile:compile-testing:0.11',
+        truth: 'com.google.truth:truth:0.36',
+        compile_testing: 'com.google.testing.compile:compile-testing:0.12',
         jsr305: 'com.google.code.findbugs:jsr305:3.0.2',
 ]
