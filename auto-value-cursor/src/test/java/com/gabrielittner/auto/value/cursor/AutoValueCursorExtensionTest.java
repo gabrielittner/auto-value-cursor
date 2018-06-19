@@ -598,12 +598,12 @@ public class AutoValueCursorExtensionTest {
                 + "  }\n"
                 + "  @Override\n"
                 + "  public int hashCode() {\n"
-                + "    int h = 1;\n"
-                + "    h *= 1000003;\n"
-                + "    h ^= this.a;\n"
-                + "    h *= 1000003;\n"
-                + "    h ^= this.b.hashCode();\n"
-                + "    return h;\n"
+                + "    int h$ = 1;\n"
+                + "    h$ *= 1000003;\n"
+                + "    h$ ^= a;\n"
+                + "    h$ *= 1000003;\n"
+                + "    h$ ^= b.hashCode();\n"
+                + "    return h$;\n"
                 + "  }\n"
                 + "}\n");
 
