@@ -21,10 +21,11 @@ import java.util.Map;
 import javax.lang.model.element.TypeElement;
 
 import static com.gabrielittner.auto.value.util.AutoValueUtil.error;
-import static com.gabrielittner.auto.value.util.AutoValueUtil.getAutoValueClassClassName;
+import static com.gabrielittner.auto.value.util.AutoValueUtil.getAutoValueClassTypeName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.getFinalClassClassName;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newFinalClassConstructorCall;
 import static com.gabrielittner.auto.value.util.AutoValueUtil.newTypeSpecBuilder;
+import static com.gabrielittner.auto.value.util.ElementUtil.getMatchingStaticField;
 import static com.gabrielittner.auto.value.util.ElementUtil.getMatchingStaticMethod;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static javax.lang.model.element.Modifier.FINAL;
@@ -48,8 +49,8 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     public boolean applicable(Context context) {
         TypeElement valueClass = context.autoValueClass();
         return getMatchingStaticMethod(valueClass, ClassName.get(valueClass), CURSOR).isPresent()
-                || getMatchingStaticMethod(valueClass, getFunc1TypeName(context)).isPresent()
-                || getMatchingStaticMethod(valueClass, getFunctionTypeName(context)).isPresent();
+                || getMatchingStaticField(valueClass, getFunc1TypeName(context)).isPresent()
+                || getMatchingStaticField(valueClass, getFunctionTypeName(context)).isPresent();
     }
 
     @Override
@@ -61,12 +62,14 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 newTypeSpecBuilder(context, className, classToExtend, isFinal)
                         .addMethod(createReadMethod(context, properties));
 
-        if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNC1)) {
-            subclass.addField(createRxJava1Mapper(context));
+        TypeName func1TypeName = getFunc1TypeName(context);
+        if (getMatchingStaticField(context.autoValueClass(), func1TypeName).isPresent()) {
+            subclass.addField(createRxJava1Mapper(context, func1TypeName));
         }
 
-        if (ElementUtil.typeExists(context.processingEnvironment().getElementUtils(), FUNCTION)) {
-            subclass.addField(createRxJava2Mapper(context));
+        TypeName functionTypeName = getFunctionTypeName(context);
+        if (getMatchingStaticField(context.autoValueClass(), functionTypeName).isPresent()) {
+            subclass.addField(createRxJava2Mapper(context, functionTypeName));
         }
 
         return JavaFile.builder(context.packageName(), subclass.build()).build().toString();
@@ -143,8 +146,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
         return CodeBlock.of("cursor.getColumnIndex($S)", property.columnName());
     }
 
-    private FieldSpec createRxJava1Mapper(Context context) {
-        TypeName func1Name = getFunc1TypeName(context);
+    private FieldSpec createRxJava1Mapper(Context context, TypeName func1Name) {
         MethodSpec func1Method =
                 MethodSpec.methodBuilder(FUNC1_METHOD_NAME)
                         .addAnnotation(Override.class)
@@ -163,8 +165,7 @@ public class AutoValueCursorExtension extends AutoValueExtension {
                 .build();
     }
 
-    private FieldSpec createRxJava2Mapper(Context context) {
-        TypeName functionName = getFunctionTypeName(context);
+    private FieldSpec createRxJava2Mapper(Context context, TypeName functionName) {
         MethodSpec functionMethod =
                 MethodSpec.methodBuilder(FUNCTION_METHOD_NAME)
                         .addAnnotation(Override.class)
@@ -184,11 +185,11 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     }
 
     private TypeName getFunc1TypeName(Context context) {
-        return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassClassName(context));
+        return ParameterizedTypeName.get(FUNC1, CURSOR, getAutoValueClassTypeName(context));
     }
 
     private TypeName getFunctionTypeName(Context context) {
-        return ParameterizedTypeName.get(FUNCTION, CURSOR, getAutoValueClassClassName(context));
+        return ParameterizedTypeName.get(FUNCTION, CURSOR, getAutoValueClassTypeName(context));
     }
 
     public static ImmutableMap<ClassName, String> addColumnAdaptersToMethod(

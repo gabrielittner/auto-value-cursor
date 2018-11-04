@@ -9,7 +9,6 @@ import org.junit.Test;
 
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.testing.compile.JavaSourcesSubjectFactory.javaSources;
-import static org.junit.Assert.fail;
 
 public class AutoValueCursorExtensionTest {
 
@@ -351,6 +350,7 @@ public class AutoValueCursorExtensionTest {
     }
 
     @Test
+    // don't generate anything RxJava specific just because it's on the classpath
     public void rxjava2() {
         JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
                 + "package test;\n"
@@ -365,16 +365,8 @@ public class AutoValueCursorExtensionTest {
         JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
                 + "package test;\n"
                 + "import android.database.Cursor;\n"
-                + "import io.reactivex.functions.Function;\n"
-                + "import java.lang.Override;\n"
                 + "import java.lang.String;\n"
                 + "final class AutoValue_Test extends $AutoValue_Test {\n"
-                + "  static final Function<Cursor, Test> MAPPER_FUNCTION = new Function<Cursor, Test>() {\n"
-                + "    @Override\n"
-                + "    public AutoValue_Test apply(Cursor c) {\n"
-                + "      return createFromCursor(c);\n"
-                + "    }\n"
-                + "  };\n"
                 + "  AutoValue_Test(int a, String b) {\n"
                 + "    super(a, b);\n"
                 + "  }\n"
@@ -401,7 +393,7 @@ public class AutoValueCursorExtensionTest {
                 + "import com.google.auto.value.AutoValue;\n"
                 + "import io.reactivex.functions.Function;\n"
                 + "@AutoValue public abstract class Test {\n"
-                + "  public static Function<Cursor, Test> blahMap() { return null; }\n"
+                + "  public static Function<Cursor, Test> MAPPER = AutoValue_Test.MAPPER_FUNCTION;\n"
                 + "  public abstract int a();\n"
                 + "  public abstract String b();\n"
                 + "}\n");
@@ -447,6 +439,7 @@ public class AutoValueCursorExtensionTest {
     }
 
     @Test
+    // don't generate anything RxJava specific just because it's on the classpath
     public void rxjava() {
         JavaFileObject source = JavaFileObjects.forSourceString("test.Test", ""
                 + "package test;\n"
@@ -461,16 +454,8 @@ public class AutoValueCursorExtensionTest {
         JavaFileObject expected = JavaFileObjects.forSourceString("test.AutoValue_Test", ""
                 + "package test;\n"
                 + "import android.database.Cursor;\n"
-                + "import java.lang.Override;\n"
                 + "import java.lang.String;\n"
-                + "import rx.functions.Func1;\n"
                 + "final class AutoValue_Test extends $AutoValue_Test {\n"
-                + "  static final Func1<Cursor, Test> MAPPER = new Func1<Cursor, Test>() {\n"
-                + "    @Override\n"
-                + "    public AutoValue_Test call(Cursor c) {\n"
-                + "      return createFromCursor(c);\n"
-                + "    }\n"
-                + "  };\n"
                 + "  AutoValue_Test(int a, String b) {\n"
                 + "    super(a, b);\n"
                 + "  }\n"
@@ -497,7 +482,7 @@ public class AutoValueCursorExtensionTest {
                 + "import android.database.Cursor;\n"
                 + "import rx.functions.Func1;\n"
                 + "@AutoValue public abstract class Test {\n"
-                + "  public static Func1<Cursor, Test> blahMap() { return null; }\n"
+                + "  public static Func1<Cursor, Test> MAPPER = AutoValue_Test.MAPPER;\n"
                 + "  public abstract int a();\n"
                 + "  public abstract String b();\n"
                 + "}\n");

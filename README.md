@@ -21,14 +21,10 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
   }
 
   // Optional: if your project includes RxJava the extension will generate a Func1<Cursor, User>
-  public static Func1<Cursor, User> mapper() {
-    return AutoValue_User.MAPPER;
-  }
+  public static Func1<Cursor, User> MAPPER = AutoValue_User.MAPPER;
 
   // Optional: if your project includes RxJava 2 the extension will generate a Function<Cursor, User>
-  public static Function<Cursor, User> mapper() {
-    return AutoValue_User.MAPPER_FUNCTION;
-  }
+  public static Function<Cursor, User> MAPPER = AutoValue_User.MAPPER_FUNCTION;
 
   // Optional: When you include an abstract method that returns ContentValues and doesn't have
   // any parameters the extension will implement it for you
@@ -38,9 +34,10 @@ import com.gabrielittner.auto.value.cursor.ColumnName;
 
 **Important:** The extension will only be applied when there is
 - a static method that returns your value type (`User` in the example) and takes a `Cursor` as parameter
-- and/or a static method that returns a `Func1<Cursor, YourValueType>` and has no parameters
+- and/or a static field of type `Func1<Cursor, YourValueType>`
+- and/or a static field of type `Function<Cursor, YourValueType>`
 
-## Custom types 
+## Custom types
 
 The following types are supported by default:
 
