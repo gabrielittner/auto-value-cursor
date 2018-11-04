@@ -2,16 +2,14 @@ import org.gradle.internal.jvm.Jvm
 
 apply plugin: 'java'
 apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'com.vanniktech.maven.publish'
 
 sourceCompatibility = rootProject.ext.javaVersion
 targetCompatibility = rootProject.ext.javaVersion
 
-// disable default jar tasks
-configurations.runtime.artifacts.removeAll { it.archiveTask.is jar }
-tasks.getByName('jar').enabled = false
-
 // create extra configuration for shaded dependencies, so they're not included in the pom
-def shadedConfig = configurations.create('compileShaded');
+def shadedConfig = configurations.create('compileShaded')
+shadedConfig.transitive = false
 configurations.compileOnly.extendsFrom(shadedConfig)
 configurations.testCompile.extendsFrom(shadedConfig)
 
@@ -19,9 +17,7 @@ shadowJar {
     classifier = ''
     configurations = [shadedConfig]
 
-    relocate 'com.google.common', 'autovaluecursor.shaded.com.google.common'
     relocate 'com.google.auto.common', 'autovaluecursor.shaded.com.google.auto.common'
-    relocate 'com.google.thirdparty', 'autovaluecursor.shaded.com.google.thirdparty'
     relocate 'com.gabrielittner.auto.value.util', 'autovaluecursor.shaded.com.gabrielittner.auto.value.util'
 }
 
@@ -30,16 +26,13 @@ artifacts {
     archives shadowJar
 }
 
-
 dependencies {
     compile project(':auto-value-cursor-annotations')
     compile deps.javapoet
     compile deps.auto_value
+    compile deps.guava
     compileShaded deps.auto_common
-    compileShaded (deps.auto_ext_util) {
-        exclude group: 'com.google.auto.value', module: 'auto-value'
-        exclude group: 'com.squareup', module: 'javapoet'
-    }
+    compileShaded deps.auto_ext_util
 
     compileOnly deps.auto_service
 
@@ -49,5 +42,3 @@ dependencies {
     testCompile files(Jvm.current().getToolsJar())
     testCompile deps.jsr305
 }
-
-apply from: rootProject.file('gradle/mvn-push.gradle')
