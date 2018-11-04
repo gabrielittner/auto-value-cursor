@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+Version 2.0.0-rc1 *(2018-11-04)*
+----------------------------
+
+#### Supports: AutoValue 1.6.3rc1
+
+- support incremental annotation processing
+- RxJava support now requires you to declare a static `Func1` or `Function` field
+
 Version 1.1.0 *(2017-04-25)*
 ----------------------------
 
