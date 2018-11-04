@@ -18,6 +18,7 @@ import com.squareup.javapoet.TypeSpec;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
 
 import static com.gabrielittner.auto.value.util.AutoValueUtil.error;
@@ -44,6 +45,11 @@ public class AutoValueCursorExtension extends AutoValueExtension {
     private static final String FUNC1_METHOD_NAME = "call";
     private static final String FUNCTION_FIELD_NAME = "MAPPER_FUNCTION";
     private static final String FUNCTION_METHOD_NAME = "apply";
+
+    @Override
+    public IncrementalExtensionType incrementalType(ProcessingEnvironment processingEnvironment) {
+        return IncrementalExtensionType.ISOLATING;
+    }
 
     @Override
     public boolean applicable(Context context) {
