@@ -33,7 +33,7 @@ ext.deps = [
         android: 'com.google.android:android:2.1.2',
 
         junit: 'junit:junit:4.12',
-        truth: 'com.google.truth:truth:0.42',
+        truth: 'com.google.truth:truth:0.44',
         compile_testing: 'com.google.testing.compile:compile-testing:0.17',
         jsr305: 'com.google.code.findbugs:jsr305:3.0.2',
 ]
