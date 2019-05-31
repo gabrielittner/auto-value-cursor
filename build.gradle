@@ -34,6 +34,6 @@ ext.deps = [
 
         junit: 'junit:junit:4.12',
         truth: 'com.google.truth:truth:0.45',
-        compile_testing: 'com.google.testing.compile:compile-testing:0.17',
+        compile_testing: 'com.google.testing.compile:compile-testing:0.18',
         jsr305: 'com.google.code.findbugs:jsr305:3.0.2',
 ]
