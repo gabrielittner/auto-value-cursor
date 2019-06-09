@@ -29,6 +29,7 @@ ext.deps = [
         guava: 'com.google.guava:guava:27.1-jre',
         auto_ext_util: 'com.gabrielittner.auto.value:auto-value-extension-util:0.4.0',
 
+        auto_service_annotations: 'com.google.auto.service:auto-service-annotations:1.0-rc5',
         auto_service: 'com.google.auto.service:auto-service:1.0-rc5',
         android: 'com.google.android:android:2.1.2',
 
