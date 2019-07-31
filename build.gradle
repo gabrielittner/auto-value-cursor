@@ -20,7 +20,7 @@ allprojects {
 
 ext {
     javaVersion = JavaVersion.VERSION_1_7
-    autoServiceVersion = "1.0-rc5"
+    autoServiceVersion = "1.0-rc6"
 }
 
 ext.deps = [
