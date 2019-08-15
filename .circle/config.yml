@@ -1,0 +1,112 @@
+version: 2.1
+
+
+references:
+  cache_key_gradle_wrapper: &cache_key_gradle_wrapper
+    key: gradle-wrapper-v1-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+  cache_key_android_sdk: &cache_key_android_sdk
+    key: android-sdk-v1-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}
+  cache_key_gradle_cache: &cache_key_gradle_cache
+    key: gradle-cache-v1-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "build.gradle" }}
+
+
+executors:
+  android:
+    docker:
+    - image: gabrielittner/android-sdk:tools-26.1.1-jdk8u222
+    working_directory: ~/lazythreetenbp
+    environment:
+    - GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx1536m" -Dorg.gradle.workers.max=2 -Dkotlin.incremental=false
+
+
+commands:
+  save_gradle_wrapper:
+    steps:
+      - save_cache:
+          name: "Saving Gradle Wrapper to cache"
+          <<: *cache_key_gradle_wrapper
+          paths:
+            - "~/.gradle/wrapper"
+
+  restore_gradle_wrapper:
+    steps:
+      - restore_cache:
+          name: "Restoring Gradle Wrapper from cache"
+          <<: *cache_key_gradle_wrapper
+
+  save_android_sdk:
+    steps:
+      - save_cache:
+          name: "Saving downloaded Android SDK components to cache"
+          <<: *cache_key_android_sdk
+          paths:
+            #TODO replace ~/android-sdk with $ANDROID_HOME to be less reliant on docker image
+            - "/android-sdk/build-tools"
+            - "/android-sdk/platforms"
+            - "/android-sdk/platform-tools"
+
+  restore_android_sdk:
+    steps:
+      - restore_cache:
+          name: "Restoring downloaded Android SDK components from cache"
+          <<: *cache_key_android_sdk
+
+  save_gradle_cache:
+    steps:
+      - save_cache:
+          name: "Saving Gradle cache to cache"
+          <<: *cache_key_gradle_cache
+          paths:
+            - "~/.android/build-cache"
+            - "~/.gradle/caches/"
+
+  restore_gradle_cache:
+    steps:
+      - restore_cache:
+          name: "Restoring Gradle cache from cache"
+          <<: *cache_key_gradle_cache
+        
+  gradle_android_setup:
+    steps: 
+      - restore_gradle_wrapper
+      - restore_android_sdk
+      - restore_gradle_cache
+      - run:
+          name: Download Gradle wrapper
+          command: ./gradlew -v
+      - save_gradle_wrapper
+      - run: 
+          name: Download Android SDK components
+          #TODO https://issuetracker.google.com/issues/64934388
+          command: ./gradlew help && sdkmanager --list
+      - save_android_sdk
+
+
+jobs:
+  build:
+    executor: android
+    steps:
+      - checkout
+      - gradle_android_setup
+      - run: ./gradlew build --stacktrace --continue
+      - save_gradle_cache
+
+  publish_snapshot:
+    executor: android
+    steps:
+      - checkout
+      - gradle_android_setup
+      - run: ./gradlew uploadArchives --stacktrace
+
+workflows:
+  build:
+    jobs:
+    - build
+
+  publish_snapshot:
+    jobs:
+    - publish_snapshot:
+        context: gradle-maven-publish
+        filters:
+          branches:
+            only: master
