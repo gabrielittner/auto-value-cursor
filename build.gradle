@@ -22,7 +22,7 @@ ext {
 }
 
 ext.deps = [
-        javapoet: 'com.squareup:javapoet:1.11.1',
+        javapoet: 'com.squareup:javapoet:1.12.0',
         auto_value: 'com.google.auto.value:auto-value:1.6.5',
         auto_common: 'com.google.auto:auto-common:0.10',
         guava: 'com.google.guava:guava:28.0-jre',
