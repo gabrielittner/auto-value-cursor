@@ -25,7 +25,7 @@ ext.deps = [
         javapoet: 'com.squareup:javapoet:1.12.1',
         auto_value: 'com.google.auto.value:auto-value:1.7',
         auto_common: 'com.google.auto:auto-common:0.10',
-        guava: 'com.google.guava:guava:28.0-jre',
+        guava: 'com.google.guava:guava:28.2-jre',
         auto_ext_util: 'com.gabrielittner.auto.value:auto-value-extension-util:0.4.0',
 
         auto_service_annotations: "com.google.auto.service:auto-service-annotations:$autoServiceVersion",
