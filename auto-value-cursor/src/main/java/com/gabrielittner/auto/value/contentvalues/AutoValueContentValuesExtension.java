@@ -13,6 +13,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeSpec;
 import java.util.Collections;
 import java.util.Set;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 
 import static com.gabrielittner.auto.value.cursor.AutoValueCursorExtension.addColumnAdaptersToMethod;
@@ -26,6 +27,11 @@ public class AutoValueContentValuesExtension extends AutoValueExtension {
 
     private static final ClassName CONTENT_VALUES =
             ClassName.get("android.content", "ContentValues");
+
+    @Override
+    public IncrementalExtensionType incrementalType(ProcessingEnvironment processingEnvironment) {
+        return IncrementalExtensionType.ISOLATING;
+    }
 
     @Override
     public boolean applicable(Context context) {
