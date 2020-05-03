@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+Version 2.0.0 *(2020-05-03)*
+----------------------------
+
+#### Supports: AutoValue 1.7.0
+
+- support incremental annotation processing
+
+
 Version 2.0.0-rc1 *(2018-11-04)*
 ----------------------------
 
