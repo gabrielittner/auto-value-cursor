@@ -23,7 +23,7 @@ ext {
 
 ext.deps = [
         javapoet: 'com.squareup:javapoet:1.12.1',
-        auto_value: 'com.google.auto.value:auto-value:1.7',
+        auto_value: 'com.google.auto.value:auto-value:1.7.2',
         auto_common: 'com.google.auto:auto-common:0.10',
         guava: 'com.google.guava:guava:29.0-jre',
         auto_ext_util: 'com.gabrielittner.auto.value:auto-value-extension-util:0.4.0',
