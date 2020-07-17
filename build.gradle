@@ -5,7 +5,6 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
         classpath 'com.vanniktech:gradle-maven-publish-plugin:0.12.0'
     }
 }

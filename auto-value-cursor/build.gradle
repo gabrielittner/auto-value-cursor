@@ -1,38 +1,18 @@
 import org.gradle.internal.jvm.Jvm
 
 apply plugin: 'java-library'
-apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'com.vanniktech.maven.publish'
 
 sourceCompatibility = rootProject.ext.javaVersion
 targetCompatibility = rootProject.ext.javaVersion
-
-// create extra configuration for shaded dependencies, so they're not included in the pom
-def shadedConfig = configurations.create('compileShaded')
-shadedConfig.transitive = false
-configurations.compileOnly.extendsFrom(shadedConfig)
-configurations.testImplementation.extendsFrom(shadedConfig)
-
-shadowJar {
-    classifier = ''
-    configurations = [shadedConfig]
-
-    relocate 'com.google.auto.common', 'autovaluecursor.shaded.com.google.auto.common'
-    relocate 'com.gabrielittner.auto.value.util', 'autovaluecursor.shaded.com.gabrielittner.auto.value.util'
-}
-
-artifacts {
-    runtime shadowJar
-    archives shadowJar
-}
 
 dependencies {
     implementation project(':auto-value-cursor-annotations')
     api deps.auto_value
     implementation deps.javapoet
     implementation deps.guava
-    compileShaded deps.auto_common
-    compileShaded deps.auto_ext_util
+    implementation deps.auto_common
+    implementation deps.auto_ext_util
 
     compileOnly deps.auto_service_annotations
     annotationProcessor deps.auto_service
