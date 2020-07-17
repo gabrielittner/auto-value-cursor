@@ -109,4 +109,4 @@ workflows:
         context: gradle-maven-publish
         filters:
           branches:
-            only: master
+            only: main
