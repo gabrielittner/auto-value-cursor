@@ -1,0 +1,31 @@
+version: 2
+updates:
+- package-ecosystem: gradle
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: com.google.android:android
+    versions:
+    - "> 2.1.2"
+  - dependency-name: com.google.auto.value:auto-value
+    versions:
+    - 1.7.5
+    - "1.8"
+  - dependency-name: com.vanniktech:gradle-maven-publish-plugin
+    versions:
+    - 0.13.0
+    - 0.14.0
+    - 0.14.1
+    - 0.14.2
+  - dependency-name: com.google.guava:guava
+    versions:
+    - 30.1-jre
+  - dependency-name: junit:junit
+    versions:
+    - 4.13.1
+  - dependency-name: com.google.auto:auto-common
+    versions:
+    - "0.11"
